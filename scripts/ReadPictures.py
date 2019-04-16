@@ -52,6 +52,7 @@ if __name__ == "__main__":
             image = Image.open(tmp_directory + '/' + filename);
             image.show()
             sleep(3)
+
         # image = Image.open('/home/michael/PycharmProjects/master/test123123.jpg')
     except Exception as e:
         print(e)

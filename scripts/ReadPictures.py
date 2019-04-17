@@ -8,52 +8,47 @@ db_directory = '/home/michael/semesterprojekt.db'
 tmp_directory = '/home/michael/tmp/'
 
 
+#   Database connection function
+#   Returns a connection and a cursor object
 def new_database(name):
     con = sqlite3.connect(name)
     cur = con.cursor()
     return con, cur
 
-
+#   Retrieve all images to a given person_name out of the database
+#   Images are saved into a directory, defined as tmp_directory, in order to access them
 def extract_picture(cursor, person_name):
     sql = "SELECT Picture.data, Picture.type, Picture.filename " \
           "FROM Picture " \
           "INNER JOIN PersonPicture ON Picture.id = PersonPicture.pictureid " \
           "INNER JOIN Person ON PersonPicture.personid = Person.id " \
           "WHERE Person.name like :name"
-    sql2 = "SELECT Picture.data, Picture.type, Picture.filename " \
-           "FROM Picture " \
-           "WHERE id=:id"
-    param = {'name': '%martin%'}
-    param2 = {'id': '9'}
+    param = {'name': '%'+person_name+'%'}
 
     cursor.execute(sql, param)
-    ablobs = []
-    exts = []
-    afiles = []
     fnames = []
     rows = cursor.fetchall()
+
     for row in rows:
-        ablobs.append(row[0])
-        exts.append(row[1])
-        afiles.append(row[2])
-    for index, ext in enumerate(exts):
-        filename = afiles[index] + ext
+        #   row[0] contains image data
+        #   row[1] contains file extension
+        #   row[2] contains filename
+        filename = row[2] + row[1]
         fnames.append(filename)
         with open(tmp_directory + filename, 'wb') as output_file:
-            output_file.write(ablobs[index])
+            output_file.write(row[0])
     return fnames
 
 
 if __name__ == "__main__":
     try:
         con, cur = new_database(db_directory)
-        filenames = extract_picture(cur, "martin.7")
+        filenames = extract_picture(cur, "martin")
         for filename in filenames:
             image = Image.open(tmp_directory + '/' + filename);
             image.show()
             sleep(3)
 
-        # image = Image.open('/home/michael/PycharmProjects/master/test123123.jpg')
     except Exception as e:
         print(e)
     finally:
@@ -64,6 +59,5 @@ if __name__ == "__main__":
             try:
                 if os.path.isfile(file_path):
                     os.unlink(file_path)
-                # elif os.path.isdir(file_path): shutil.rmtree(file_path)
             except Exception as e:
                 print(e)

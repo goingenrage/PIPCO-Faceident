@@ -19,7 +19,7 @@ class Gesichtsidentifikation:
     face_cascade = None
     font = None
     encoding = face_recognition.face_encodings(cv2.resize(cv2.imread('test123123.jpg'), (0,0), fx=0.25, fy=0.25))[0]
-    #init Funktion (vergleichbar mit Konstruktor?) Wird beim erzeugen des Objekts ausgeführt.
+    #init Funktion (vergleichbar mit Konstruktor?) Wird beim erzeugen des Objekts ausgefuehrt.
     def __init__(self, normal=True):
         self.capture = cv2.VideoCapture(0)
         self.capture.set(cv2.CAP_PROP_FRAME_WIDTH, 640);
@@ -29,7 +29,7 @@ class Gesichtsidentifikation:
         self.font = cv2.FONT_HERSHEY_SIMPLEX
         self.load_approved_faces()
 
-    #Wenn im übergebenen img ein Gesicht erkannt wird, wird dieses Gesicht zurückgegeben
+    #Wenn im uebergebenen img ein Gesicht erkannt wird, wird dieses Gesicht zurueckgegeben
     def detect_face(self, img, cascade):
         rects = cascade.detectMultiScale(img, scaleFactor=1.3, minNeighbors=4, minSize=(30, 30),
                                          flags=cv2.CASCADE_SCALE_IMAGE)
@@ -46,7 +46,7 @@ class Gesichtsidentifikation:
 
         cv2.putText(img, text,(x1, y1-5), self.font, 1, color, 2)
 
-    #verkleinert das aufgenommene Bild auf die größe der erkannten Gesichtsform (kann genutzt werden um neue erlaubte
+    #verkleinert das aufgenommene Bild auf die groesse der erkannten Gesichtsform (kann genutzt werden um neue erlaubte
     #Gesichter in die Datenbank aufzunehmen?)
     def show_small_image(rects, frame):
         margin = 40
@@ -67,7 +67,7 @@ class Gesichtsidentifikation:
             yf2 = y2 + margin
             if yf2 >= yfhd:
                 yf1 = yfhd - 1
-            # xf1 = x1 – margin
+
             xf1 = -margin + x1
             if xf1 < 0:
                 xf1 = 0
@@ -78,7 +78,7 @@ class Gesichtsidentifikation:
             # cv2.imwrite("test123123.jpg", crop_img)
             cv2.imshow('HELLO', crop_img)
 
-    #Liest alle Gesichter ein, die erkannt werden dürfen und speichert sie in eine Liste
+    #Liest alle Gesichter ein, die erkannt werden duerfen und speichert sie in eine Liste
     def load_approved_faces(self):
         self.imgNumber = 123122
         self.rectsTest.clear()
@@ -92,8 +92,8 @@ class Gesichtsidentifikation:
             if img is None:
                 break
 
-    #prüft, ob die beiden übergebenen Gesichter übereinstimmen. Gibt True bei übereinstimmung und False bei keiner
-    #übereinstimmung zurück.
+    #prueft, ob die beiden uebergebenen Gesichter uebereinstimmen. Gibt True bei uebereinstimmung und False bei keiner
+    #uebereinstimmung zurueck.
     def face_identification(self,test_face):
         #print('eksdeeee ' + str(face.all()))
         small_frame = cv2.resize(test_face, (0,0), fx=0.25, fy=0.25)

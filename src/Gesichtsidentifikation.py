@@ -18,7 +18,7 @@ class Gesichtsidentifikation:
     capture = None
     face_cascade = None
     font = None
-    encoding = face_recognition.face_encodings(cv2.resize(cv2.imread('test123123.jpg'), (0,0), fx=0.25, fy=0.25))[0]
+    encoding = face_recognition.face_encodings(cv2.resize(cv2.imread('../Testbilder/test123123.jpg'), (0,0), fx=0.25, fy=0.25))[0]
     #init Funktion (vergleichbar mit Konstruktor?) Wird beim erzeugen des Objekts ausgefuehrt.
     def __init__(self, normal=True):
         self.capture = cv2.VideoCapture(0)

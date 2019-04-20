@@ -3,8 +3,8 @@ import os
 import sys
 import numpy as np
 
-namen = ["", "admars", "ahodki", "slbirc", "valentin"]
-
+#namen = ["", "admars", "ahodki", "slbirc", "valentin"]
+namen = []
 
 def detect(img, cascade):
     rects = cascade.detectMultiScale(img, scaleFactor=1.3, minNeighbors=4, minSize=(30, 30),
@@ -30,15 +30,19 @@ def prepare_training_data(data_folder_path):
     dirs = os.listdir(data_folder_path)
     faces = []
     labels = []
-
+    label = 1
+    namen.append('')
     for dir_name in dirs:
 
         if not dir_name.startswith("s"):
             continue;
-        label = int(dir_name.replace("s", ""))
+
         subject_dir_path = data_folder_path + "/" + dir_name
 
         subject_images_names = os.listdir(subject_dir_path)
+        face_name = subject_images_names[0].partition('.')[0]
+
+        namen.append(face_name)
         for image_name in subject_images_names:
             if image_name.startswith("."):
                 continue;
@@ -51,6 +55,7 @@ def prepare_training_data(data_folder_path):
         if face is not None:
             faces.append(face)
             labels.append(label)
+            label = label + 1
 
     cv2.destroyAllWindows()
     cv2.waitKey(1)
@@ -88,16 +93,20 @@ def identifiziere(test_img, confidence):
 face_recognizer = cv2.face.LBPHFaceRecognizer_create()
 def trainiereFaceRecognizer():
 
-    faces, labels = prepare_training_data("/home/reichenecker/Dokumente/Semesterprojekt2019/test")
+    faces, labels = prepare_training_data("./Testbilder")
     face_recognizer.train(faces, np.array(labels))
-    face_recognizer.save('trainedModel.xml')
+    face_recognizer.save('./models/trainedModel.xml')
+    np.save('./models/namesList.npy', np.array(namen))
+
 
 def ladeFaceRecognizer():
-    face_recognizer.read('trainedModel.xml')
+    face_recognizer.read('./models/trainedModel.xml')
+    for x in np.load('./models/namesList.npy').tolist():
+        namen.append(x)
 
 
 #trainiereFaceRecognizer()
-ladeFaceRecognizer()
+trainiereFaceRecognizer()
 
 capture = cv2.VideoCapture(0)
 face_cascade = cv2.CascadeClassifier(
@@ -110,17 +119,8 @@ while(True):
             rects = detect(frame, face_cascade)
             #print(sys.getsizeof(rects))
             if len(rects):
-                #vis = frame.copy() #Kopie des aktuellen Frames wird erstellt um darauf zu Zeichnen
-
-                #draw_rectangle(rects, gray)
-
                 print('Gesicht erkannt!')
-
-
-
-
-                cv2.imshow('HELLO', identifiziere(frame, 40))
-
+                cv2.imshow('HELLO', identifiziere(frame, 30))
             else:
                 print('kein gesicht erkannt!')
                 cv2.imshow('HELLO', frame)

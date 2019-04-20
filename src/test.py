@@ -58,9 +58,9 @@ while i < 20:
     # print(sys.getsizeof(rects))
     if len(rects):
         i = i +1
-        filename = "valentin." + str(i) + ".jpg"
+        filename = "valentin." + str(i+20) + ".jpg"
+        print(filename)
         cv2.imwrite(filename, show_small_image(rects, frame))
-
-
+        print("bild gespeichert")
 
 print("20 bilder gespeichert!")

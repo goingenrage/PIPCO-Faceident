@@ -1,7 +1,7 @@
 # Main goal is to launch this script with defining a directory in which the files are located
 # The script then automatically inserts all found pictures into the database
 
-db_directory = '/home/michael/semesterprojekt.db'
+db_directory = '/home/michael/semesterprojekt2.db'
 
 import os
 import sqlite3

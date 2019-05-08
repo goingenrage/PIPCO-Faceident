@@ -55,10 +55,11 @@ while i < 20:
 
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
     rects = detect_face(gray, face_cascade)
+    cv2.imshow("hello", frame)
     # print(sys.getsizeof(rects))
     if len(rects):
         i = i +1
-        filename = "valentin." + str(i+20) + ".jpg"
+        filename = "valentin." + str(i+40) + ".jpg"
         print(filename)
         cv2.imwrite(filename, show_small_image(rects, frame))
         print("bild gespeichert")

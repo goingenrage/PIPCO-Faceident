@@ -17,7 +17,7 @@ def detect(img, cascade):
 def detect_face(img):
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
-    face_cascade = cv2.CascadeClassifier('./models/haar/cascade.xml')
+    face_cascade = cv2.CascadeClassifier('/opt/intel/computer_vision_sdk_2018.5.455/opencv/etc/haarcascades/haarcascade_frontalface_default.xml')
     faces = face_cascade.detectMultiScale(gray, scaleFactor=1.2, minNeighbors=5);
     if (len(faces) == 0):
         return 0,0
@@ -63,12 +63,15 @@ def prepare_training_data(data_folder_path):
 
     return faces, labels
 
+
+
+
 def identifiziere(test_img, confidence):
 
     img = test_img.copy()
     face, rect = detect_face(img)
     try:
-        if not face.any() is None:
+        if not face.any() == None:
             label = face_recognizer.predict(face)
             print(label)
             if 100 - label[1] >= confidence:
@@ -83,8 +86,11 @@ def identifiziere(test_img, confidence):
 
     return img
 
+
+
+
+
 face_recognizer = cv2.face.LBPHFaceRecognizer_create()
-#face_recognizer = cv2.face.FisherFaceRecognizer_create()
 def trainiereFaceRecognizer():
 
     faces, labels = prepare_training_data("./Testbilder")
@@ -92,57 +98,29 @@ def trainiereFaceRecognizer():
     face_recognizer.save('./models/trainedModel.xml')
     np.save('./models/namesList.npy', np.array(namen))
 
+
 def ladeFaceRecognizer():
     face_recognizer.read('./models/trainedModel.xml')
     for x in np.load('./models/namesList.npy').tolist():
         namen.append(x)
 
-def crop_img(rects, frame):
-        margin = 40
-        yfhd = 1080
-        xfhd = 1920
-        iface = 0
-        nfaces = 0
-
-        for x1, y1, x2, y2 in rects:
-            x5 = x1
-            iface = iface + 1
-            nfaces = nfaces + 1
-            sface = "_%02d" % iface
-    #        filename = strftime("%Y%m%d_%H_%M_%S") + sface + ".jpg"
-            yf1 = -margin + y1
-            if yf1 < 0:
-                yf1 = 0
-            yf2 = y2 + margin
-            if yf2 >= yfhd:
-                yf1 = yfhd - 1
-
-            xf1 = -margin + x1
-            if xf1 < 0:
-                xf1 = 0
-            xf2 = x2 + margin
-            if xf2 >= xfhd:
-                xf2 = xfhd - 1
-            crop_img = frame[yf1:yf2, xf1:xf2]
-            return crop_img
 
 #trainiereFaceRecognizer()
-ladeFaceRecognizer()
+trainiereFaceRecognizer()
 
 capture = cv2.VideoCapture(0)
 face_cascade = cv2.CascadeClassifier(
-            './models/haar/cascade.xml')
-
+            '/opt/intel/computer_vision_sdk_2018.5.455/opencv/etc/haarcascades/haarcascade_frontalface_default.xml')
 while(True):
             ret, frame = capture.read()
-
+            #print('retval: ' + str(ret))
 
 
             rects = detect(frame, face_cascade)
+            #print(sys.getsizeof(rects))
             if len(rects):
                 print('Gesicht erkannt!')
                 cv2.imshow('HELLO', identifiziere(frame, 30))
-
             else:
                 print('kein gesicht erkannt!')
                 cv2.imshow('HELLO', frame)

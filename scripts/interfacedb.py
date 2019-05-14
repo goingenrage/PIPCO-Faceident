@@ -489,6 +489,26 @@ def update_person(person_id, person_name, person_role, person_surname='', person
         con.rollback()
         raise e
 
+
+def update_action(action_id, action_name):
+    try:
+        __check_for_initialization()
+        con, cur = database_connect()
+        sql = "UPDATE Action " \
+              "SET name = :action_name " \
+              "WHERE id = :action_id"
+
+        params = {'action_id': action_id, 'action_name': action_name}
+
+
+        # Execute the select query and check how many lines were affected
+        cur.execute(sql, params)
+        con.commit()
+        return True
+    except Exception as e:
+        con.rollback()
+        raise e
+
 #endregion
 
 #region Classes

@@ -2,8 +2,8 @@ import sqlite3
 import os
 
 # region Global variables
-db_location = ""
-tmp_directory = ""
+__db_location = ""
+__tmp_directory = ""
 # endregion
 
 # region Initialization
@@ -65,8 +65,8 @@ def get_by_person(person_name, person_surname=''):
         cursor.execute(sqlPerson, param)
         data_row = cursor.fetchone()
         person_id = data_row[0]
-        filenames = get_pictures_by_personid(person_id)
-        actions = get_actions_by_personid(person_id)
+        filenames = __get_pictures_by_personid(person_id)
+        actions = __get_actions_by_personid(person_id)
         return DetailedPerson(filenames, person_id, person_name, person_surname, data_row[1], data_row[2], actions)
     except Exception as e:
         raise e
@@ -74,7 +74,7 @@ def get_by_person(person_name, person_surname=''):
         cursor.close()
         connection.close()
 
-def get_pictures_by_personid(person_id):
+def __get_pictures_by_personid(person_id):
     """
     Sucht anhand der übergebenen Personen ID nach Bildern, welche diese referenzieren.
     Diese werden in einem bestimmten temporären Verzeichnis als .jpg Datei abgelegt.
@@ -104,7 +104,7 @@ def get_pictures_by_personid(person_id):
         cursor.close()
         connection.close()
 
-def get_actions_by_personid(person_id):
+def __get_actions_by_personid(person_id):
     """
     Sucht in der Datenbank nach Aktionen, welche in der Tabelle PersonAction mit der übergebenen Personen ID übereinstimmen
     :param person_id: Personen ID
@@ -238,7 +238,7 @@ def delete_person_by_name(person_name, person_surname=''):
         person_id = __get_personid_by_name(person_name, person_surname)
         param = {'person_id': person_id}
         connection, cursor = database_connect()
-        __delete_images_by_person_id(person_id, cursor)
+        __delete_images_by_personid(person_id, cursor)
         __delete_person_action_by_personid(person_id, cursor)
         cursor.execute(sql, param)
         connection.commit()
@@ -249,7 +249,7 @@ def delete_person_by_name(person_name, person_surname=''):
         cursor.close()
         connection.close()
 
-def delete_images_by_person_id(person_id):
+def delete_images_by_personid(person_id):
     """
     Löscht jeden Eintrag aus der Tabelle Picture, welche die Personen ID peron_id referenziert.
     Der Vorgang wird hierbei durch eine Transaktion gesichert.
@@ -272,7 +272,7 @@ def delete_images_by_person_id(person_id):
         cursor.close()
         connection.close()
 
-def __delete_images_by_person_id(person_id, cur):
+def __delete_images_by_personid(person_id, cur):
         """
         Löscht jeden Eintrag aus der Tabelle Picture, welche die Personen ID peron_id referenziert.
         :param person_id: Personen ID
@@ -489,8 +489,13 @@ def update_person(person_id, person_name, person_role, person_surname='', person
         con.rollback()
         raise e
 
-
 def update_action(action_id, action_name):
+    """
+    Aktualisiert einen Eintrag in der Aktion Tabelle anhand der ID mit dem Parameter als neuen Namenswert
+    :param action_id: ID der zu ändernden Aktion
+    :param action_name: Neuer Name für die Aktion
+    :return: True, falls Änderungen ohne Fehler durchgeführt werden konnten
+    """
     try:
         __check_for_initialization()
         con, cur = database_connect()
@@ -508,7 +513,6 @@ def update_action(action_id, action_name):
     except Exception as e:
         con.rollback()
         raise e
-
 #endregion
 
 #region Classes

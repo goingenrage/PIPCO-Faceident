@@ -6,6 +6,7 @@ from argparse import ArgumentParser
 import json
 from openvino.inference_engine import IENetwork, IEPlugin
 from pathlib import Path
+import time
 
 model_xml = '../models/face-detection-adas-0001.xml'
 model_bin = '../models/face-detection-adas-0001.bin'
@@ -14,6 +15,7 @@ model_reid_bin = '../models/face-reidentification-retail-0095.bin'
 
 globalReIdVec = []
 names = {}
+recentlySeen = {}
 model_n = 0
 model_c = 0
 model_h = 0
@@ -95,6 +97,8 @@ def initReidentification():
 
 
 def reidentification(image):
+
+    
     global exec_net
 
     cap_w = cap.get(3)
@@ -106,31 +110,34 @@ def reidentification(image):
     in_frame = in_frame.reshape((model_n, model_c, model_h, model_w))
 
     exec_net.start_async(request_id=0, inputs={input_blob: in_frame})
+    try:
+        if exec_net.requests[0].wait(-1) == 0:
+            res = exec_net.requests[0].outputs[out_blob]
+            for obj in res[0][0]:
+                class_id = int(obj[1])
+                if class_id == 1:
+                    if obj[2] > 0.5:
+                        xmin = int(obj[3] * cap_w)
+                        ymin = int(obj[4] * cap_h)
+                        xmax = int(obj[5] * cap_w)
+                        ymax = int(obj[6] * cap_h)
+                        frame_org = im.copy()
+                        person = frame_org[ymin:ymax, xmin:xmax]
+                        in_frame_reid = cv2.resize(person, (model_reid_w, model_reid_h))
+                        in_frame_reid = in_frame_reid.transpose((2, 0, 1))  # Change data layout from HWC to CHW
+                        in_frame_reid = in_frame_reid.reshape((model_reid_n, model_reid_c, model_reid_h, model_reid_w))
 
-    if exec_net.requests[0].wait(-1) == 0:
-        res = exec_net.requests[0].outputs[out_blob]
-        for obj in res[0][0]:
-            class_id = int(obj[1])
-            if class_id == 1:
-                if obj[2] > 0.5:
-                    xmin = int(obj[3] * cap_w)
-                    ymin = int(obj[4] * cap_h)
-                    xmax = int(obj[5] * cap_w)
-                    ymax = int(obj[6] * cap_h)
-                    frame_org = im.copy()
-                    person = frame_org[ymin:ymax, xmin:xmax]
-                    in_frame_reid = cv2.resize(person, (model_reid_w, model_reid_h))
-                    in_frame_reid = in_frame_reid.transpose((2, 0, 1))  # Change data layout from HWC to CHW
-                    in_frame_reid = in_frame_reid.reshape((model_reid_n, model_reid_c, model_reid_h, model_reid_w))
+                        exec_net_reid.start_async(request_id=0, inputs={input_blob_reid: in_frame_reid})
 
-                    exec_net_reid.start_async(request_id=0, inputs={input_blob_reid: in_frame_reid})
+                        if exec_net_reid.requests[0].wait(-1) == 0:
+                            res_reid = exec_net_reid.requests[0].outputs[out_blob_reid]
+                            reIdVector = res_reid[0].reshape(-1, )
 
-                    if exec_net_reid.requests[0].wait(-1) == 0:
-                        res_reid = exec_net_reid.requests[0].outputs[out_blob_reid]
-                        reIdVector = res_reid[0].reshape(-1, )
+                            return xmin, ymin, xmax, ymax, reIdVector
+    except:
+        print("exception")
+    return 0, 0, 0, 0, None
 
-                        return xmin, ymin, xmax, ymax, reIdVector
-    return 0,0,0,0, None
 
 def createMatchingPerson(newReIdVec):
     global globalReIdVec
@@ -150,7 +157,7 @@ def findMatchingPerson(newReIdVec):
     for i in range(size):
 
         cosSim = cosineSimilarity(newReIdVec, globalReIdVec[i])
-        print(cosSim)
+        #print(cosSim)
         if cosSim > 0.5:
             # globalReIdVec[i] = newReIdVec.copy() #ist es sinnvoll bei einem erkannten gesicht den vector zu aktualisieren?
             # was passiert bei einer falschen erkennung?
@@ -183,23 +190,58 @@ def main():
         ret, frame = cap.read()
         if not ret:
             break
+        cap_w = cap.get(3)
+        cap_h = cap.get(4)
+        in_frame = cv2.resize(frame, (model_w, model_h))
+        in_frame = in_frame.transpose((2, 0, 1))
+        in_frame = in_frame.reshape((model_n, model_c, model_h, model_w))
 
-        xmin, ymin, xmax, ymax, reIdVector = reidentification(frame)
-        if reIdVector is not None:
-            foundId = findMatchingPerson(reIdVector)
-        else:
-            foundId = -1
+        exec_net.start_async(request_id=0, inputs={input_blob: in_frame})
 
-        color = (255, 0, 0)
-        cv2.rectangle(frame, (xmin, ymin), (xmax, ymax), color, 2)
-        idColor = (0, 0, 255)
-        print(foundId)
-        if foundId is not -1:
-            cv2.putText(frame, names[foundId], (xmin, ymin - 7), cv2.FONT_HERSHEY_COMPLEX, 0.8, idColor,
-                        1)
-        else:
-            cv2.putText(frame, "Unknown", (xmin, ymin - 7), cv2.FONT_HERSHEY_COMPLEX, 0.8, idColor, 1)
+        if exec_net.requests[0].wait(-1) == 0:
 
+            res = exec_net.requests[0].outputs[out_blob]
+            for obj in res[0][0]:
+                try:
+                    class_id = int(obj[1])
+                    if class_id == 1:
+                        if obj[2] > 0.5:
+                            xmin = int(obj[3] * cap_w)
+                            ymin = int(obj[4] * cap_h)
+                            xmax = int(obj[5] * cap_w)
+                            ymax = int(obj[6] * cap_h)
+                            frame_org = frame.copy()
+                            person = frame_org[ymin:ymax, xmin:xmax]
+                            in_frame_reid = cv2.resize(person, (model_reid_w, model_reid_h))
+                            in_frame_reid = in_frame_reid.transpose((2, 0, 1))  # Change data layout from HWC to CHW
+                            in_frame_reid = in_frame_reid.reshape(
+                                (model_reid_n, model_reid_c, model_reid_h, model_reid_w))
+
+                            exec_net_reid.start_async(request_id=0, inputs={input_blob_reid: in_frame_reid})
+
+                            if exec_net_reid.requests[0].wait(-1) == 0:
+                                res_reid = exec_net_reid.requests[0].outputs[out_blob_reid]
+                                reIdVector = res_reid[0].reshape(-1, )
+
+                                foundId = findMatchingPerson(reIdVector)
+
+                                color = (255, 0, 0)
+                                cv2.rectangle(frame, (xmin, ymin), (xmax, ymax), color, 2)
+                                idColor = (0, 0, 255)
+                                #print(foundId)
+                                if foundId is not -1:
+                                    cv2.putText(frame, names[foundId], (xmin, ymin - 7), cv2.FONT_HERSHEY_COMPLEX, 0.8,
+                                                idColor,
+                                                1)
+                                    #Hier soll geprüft werden, wann die Person zuletzt gesehen wurde, um Aktionen nicht bei jedem Frame auszuführen.
+                                    if not recentlySeen.__contains__(names[foundId]) or (time.time() - recentlySeen[names[foundId]]) > 10:
+                                        print("eksde")
+                                        recentlySeen[names[foundId]] = time.time()
+                                else:
+                                    cv2.putText(frame, "Unknown", (xmin, ymin - 7), cv2.FONT_HERSHEY_COMPLEX, 0.8,
+                                                idColor, 1)
+                except:
+                    print("exception")
 
         cv2.imshow("Facerecognition", frame)
 
@@ -207,9 +249,10 @@ def main():
             cap.release()
             break
 
-    cv2.destroyAllWindows()
-    del exec_net
-    del exec_net_reid
+
+cv2.destroyAllWindows()
+del exec_net
+del exec_net_reid
 
 if __name__ == '__main__':
     sys.exit(main() or 0)

@@ -59,7 +59,7 @@ while i < 10:
     # print(sys.getsizeof(rects))
     if len(rects):
         i = i +1
-        filename = "cherubin." + str(i) + ".jpg"
+        filename = "jack." + str(i) + ".jpg"
         print(filename)
         cv2.imwrite(filename, show_small_image(rects, frame))
         print("bild gespeichert")

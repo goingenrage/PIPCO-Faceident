@@ -258,6 +258,35 @@ def __get_actionid_by_name(action_name):
         return cursor.fetchone()[0]
     except Exception as e:
         raise e
+
+def get_all_pictures():
+    try:
+        __check_for_initialization()
+        sql = "SELECT Picture.data, Picture.filename, Person.name " \
+              "FROM Picture " \
+                "INNER JOIN Person ON Person.id=Picture.personId "
+
+        connection, cursor = database_connect()
+        cursor.execute(sql)
+        data_rows = cursor.fetchall()
+        file_list = []
+        person = ''
+        for data_row in data_rows:
+            if person != data_row[2]:
+                person = data_row[2]
+                i=1
+            filename = person + '.' + str(i) + '.jpg'
+            i=i+1
+            file_list.append(tmp_directory + filename)
+            with open(tmp_directory + filename, 'wb') as output_file:
+                output_file.write(data_row[0])
+        return file_list
+    except Exception as e:
+        raise e
+    finally:
+        cursor.close()
+        connection.close()
+
 # endregion
 
 #region Delete-functions

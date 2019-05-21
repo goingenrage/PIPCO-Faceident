@@ -1,5 +1,6 @@
 import sqlite3
 import os
+import time
 
 # region Global variables
 __db_location = ""
@@ -22,7 +23,6 @@ def initialize(database_location, temporary_saving_directory):
         tmp_directory = ""
         raise e
 
-
 #   Checks if the global variables were initialized
 #   throws InitializationError if any of the global variables is empty
 def __check_for_initialization():
@@ -32,13 +32,51 @@ def __check_for_initialization():
         raise Exception("Temporary directory was not initialized. Please call the initialize method first.")
 # endregion
 
-# region Database connection
-#   Database connection function
-#   Returns a connection and a cursor object
+# region Misc database functions
 def database_connect():
+    """
+    Verbindet zu der in __db_location angegebenen Datenbank und erstellt ein Connection und ein Cursor Objekt
+    :return: con: Connection objekt; cur: Cursor objekt
+    """
     con = sqlite3.connect(db_location)
     cur = con.cursor()
     return con, cur
+
+def database_dump(saving_path):
+    """
+    Exportiert die komplette Datenbank in eine .sql Datei. Der Dateiname enthält das aktuelle Datum sowie die Uhrzeit
+    und endet mit 'dump.sql'. Die Datei wird unter dem in saving_path spezifiziertem Pfad zu finden sein
+    :param saving_path: Der Pfad, in welchem die Datei gespeichert werden soll.
+    """
+    try:
+        __check_for_initialization()
+        timestamp = time.strftime("%d_%m_%Y_%H_%M_%S")
+        con, cur = database_connect()
+        with open(saving_path+timestamp+'_dump.sql', 'w') as f:
+            for line in con.iterdump():
+                f.write('%s\n' % line)
+    except Exception as e:
+        raise e
+    finally:
+        cur.close()
+        con.close()
+
+def database_import(file_path):
+    """
+    Importiert eine Datenbank dump Datei und führt die in der Datei angegebenen Befehle aus
+    :param file_path: Pfad zu der Dump Datei
+    """
+    try:
+        __check_for_initialization()
+        con, cur = database_connect()
+        f = open(file_path, 'r')
+        str = f.read()
+        con.executescript(str)
+    except Exception as e:
+        raise e
+    finally:
+        cur.close()
+        con.close()
 # endregion
 
 # region Reading-functions

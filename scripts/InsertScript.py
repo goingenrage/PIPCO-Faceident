@@ -1,7 +1,7 @@
 # Main goal is to launch this script with defining a directory in which the files are located
 # The script then automatically inserts all found pictures into the database
 
-db_directory = '/home/michael/semesterprojekt2.db'
+db_directory = '/home/michael/semesterprojekt_test.db'
 
 import os
 import sqlite3
@@ -52,11 +52,12 @@ def insert_picture(current_file, cur):
 if __name__ == "__main__":
     try:
         import sys
+        from scripts import interfacedb
 
         print(sys.argv)
         #Get database connection
         con, cur = new_database(db_directory)
-        insertAction(con, cur)
+        interfacedb.initialize(db_directory,'/home/michael/tmp/')
         dir_counter = 0
         sub_dir_counter = 0
         directories = os.listdir(sys.argv[1])
@@ -66,25 +67,24 @@ if __name__ == "__main__":
             for subdirectory in subdirectories:
                 sub_dir_counter += 1
                 # Predefine person insert query
-                insert_person_query = "INSERT INTO Person(actionid,name) VALUES(?,?)"
-                insert_person_picture_query = "INSERT INTO PersonPicture(personid,pictureid) VALUES(?,?)"
+                insert_person_query = "INSERT INTO Person(name, role) VALUES(?,?)"
                 parent_dir = sys.argv[1] + '/' + directory + '/' + subdirectory
                 files = os.listdir(parent_dir)
                 file_ids = []
-                for file in files:
-                    # Insert pictures into database and retrieve the id
-                    file_ids.append(insert_picture(parent_dir + '/' + file, cur))
 
                 #Execute insert_person_query and get the last id of the table, which should be the inserted one
-                cur.execute(insert_person_query, [1, subdirectory])
+                cur.execute(insert_person_query, [subdirectory,1])
                 person_id = cur.lastrowid
-                for file_id in file_ids:
-                    #Fill the PersonPicture table with the personid and the fileids
-                    cur.execute(insert_person_picture_query, [person_id, file_id])
+
+                for file in files:
+                    # Insert pictures into database and retrieve the id
+                    interfacedb.__insert_picture(person_id, parent_dir + '/' + file, cur)
+
                 con.commit()
-                print(dir_counter, ".", sub_dir_counter, ": ", subdirectory + " inserted with ", len(file_ids),
-                      " files inserted. Now sleeping for 0.15 seconds")
+                print(dir_counter, ".", sub_dir_counter, ": ", subdirectory,
+                      " inserted. Now sleeping for 0.15 seconds")
                 #To prevent some misbehaviour, sleep 0.15seconds
                 sleep(0.15)
     except Exception as e:
         print("\n\n\n", e)
+        con.rollback()

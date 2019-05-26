@@ -505,19 +505,53 @@ def insert_person_action(person_id, action_id):
     except Exception as e:
         con.rollback()
         raise e
-# def insert_picture(file, cur):
-#     # Predefine picture insert query
-#     insert_query = "INSERT INTO Picture(data,type,filename) VALUES(?,?,?)"
-#     with open(file, 'rb') as input_file:
-#
-#         #Open the file and save the data into ablob variable
-#         #ext defines the extension of the file (typically the structure ".jpg")
-#         #afile contains the pure filename, without file extension
-#         ablob = input_file.read()
-#         base = os.path.basename(file)
-#         afile, ext = os.path.splitext(base)
-#         cur.execute(insert_query, [sqlite3.Binary(ablob), ext, afile])
-#         return cur.lastrowid
+
+
+def insert_picture(personId, file):
+    try:
+        __check_for_initialization()
+        con, cur = database_connect()
+
+        insert_sql = "INSERT INTO Picture(personid,data,filename) VALUES(?,?,?)"
+
+        #Execute the select query and check how many lines were affected
+
+        with open(file, 'rb') as input_file:
+            # Open the file and save the data into ablob variable
+            # ext defines the extension of the file (typically the structure ".jpg")
+            # afile contains the pure filename, without file extension
+            ablob = input_file.read()
+            base = os.path.basename(file)
+            afile, ext = os.path.splitext(base)
+            cur.execute(insert_sql, [personId, sqlite3.Binary(ablob), afile])
+
+        con.commit()
+        return cur.lastrowid
+    except Exception as e:
+        con.rollback()
+        raise e
+
+def __insert_picture(personId, file, cur):
+    try:
+        __check_for_initialization()
+
+        insert_sql = "INSERT INTO Picture(personid,data,filename) VALUES(?,?,?)"
+
+        #Execute the select query and check how many lines were affected
+
+        with open(file, 'rb') as input_file:
+            # Open the file and save the data into ablob variable
+            # ext defines the extension of the file (typically the structure ".jpg")
+            # afile contains the pure filename, without file extension
+            ablob = input_file.read()
+            base = os.path.basename(file)
+            afile, ext = os.path.splitext(base)
+            cur.execute(insert_sql, [personId, sqlite3.Binary(ablob), afile])
+
+        return cur.lastrowid
+    except Exception as e:
+        raise e
+
 # endregion
 
 #region Update-functions

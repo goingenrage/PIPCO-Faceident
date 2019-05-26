@@ -1,12 +1,16 @@
 import sys
 from scipy.spatial import distance
 import os
+import shutil
 import cv2
 from argparse import ArgumentParser
 import json
 from openvino.inference_engine import IENetwork, IEPlugin
 from pathlib import Path
 import time
+from src import create_list
+
+from scripts import interfacedb
 
 model_xml = '../models/face-detection-adas-0001.xml'
 model_bin = '../models/face-detection-adas-0001.bin'
@@ -41,8 +45,34 @@ def buildargparser():
     return parser
 
 
+def __clearDirectory():
+    folder = '/home/reichenecker/PycharmProjects/Facerecognition/Testbilder/test'
+    for the_file in os.listdir(folder):
+        file_path = os.path.join(folder, the_file)
+        try:
+            if os.path.isfile(file_path):
+                os.unlink(file_path)
+            # elif os.path.isdir(file_path): shutil.rmtree(file_path)
+        except Exception as e:
+            print(e)
+
+
+def getImagesFromDatabase():
+    print("Hole Bilder aus Datenbank")
+    '''
+    __clearDirectory()
+    interfacedb.initialize("/home/reichenecker/Dokumente/Semesterprojekt2019/Database/semesterprojekt.db", "/home/reichenecker/PycharmProjects/Facerecognition/Testbilder/test")
+    interfacedb.database_connect()
+    interfacedb.get_all_pictures()
+    '''
+    create_list.create_list()
+
+
+
+
 def personGallery(face_gallery):
-    print(face_gallery)
+    getImagesFromDatabase()
+    #bilder aus datenbank holen, ACHTUNG: ordner erst leeren um gelöschte bilder in der Datenbank nicht trotzdem einzulesen.
     with open(face_gallery, "r") as read_file:
         faces = json.load(read_file)
     print(face_gallery)
@@ -235,7 +265,7 @@ def main():
                                                 1)
                                     #Hier soll geprüft werden, wann die Person zuletzt gesehen wurde, um Aktionen nicht bei jedem Frame auszuführen.
                                     if not recentlySeen.__contains__(names[foundId]) or (time.time() - recentlySeen[names[foundId]]) > 10:
-                                        print("eksde")
+                                        print("Person " + names[foundId] + " wurde erkannt!")
                                         recentlySeen[names[foundId]] = time.time()
                                 else:
                                     cv2.putText(frame, "Unknown", (xmin, ymin - 7), cv2.FONT_HERSHEY_COMPLEX, 0.8,

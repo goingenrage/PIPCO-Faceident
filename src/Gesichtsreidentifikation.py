@@ -18,6 +18,8 @@ model_reid_xml = '../models/face-reidentification-retail-0095.xml'
 model_reid_bin = '../models/face-reidentification-retail-0095.bin'
 
 globalReIdVec = []
+unknownPersons = []
+unknownRecentlySeen = {}
 names = {}
 recentlySeen = {}
 model_n = 0
@@ -59,12 +61,12 @@ def __clearDirectory():
 
 def getImagesFromDatabase():
     print("Hole Bilder aus Datenbank")
-    '''
+
     __clearDirectory()
-    interfacedb.initialize("/home/reichenecker/Dokumente/Semesterprojekt2019/Database/semesterprojekt.db", "/home/reichenecker/PycharmProjects/Facerecognition/Testbilder/test")
+    interfacedb.initialize("/home/reichenecker/Dokumente/Semesterprojekt2019/Database/semesterprojekt.db", "/home/reichenecker/PycharmProjects/Facerecognition/Testbilder/test/")
     interfacedb.database_connect()
     interfacedb.get_all_pictures()
-    '''
+
     create_list.create_list()
 
 
@@ -72,7 +74,7 @@ def getImagesFromDatabase():
 
 def personGallery(face_gallery):
     getImagesFromDatabase()
-    #bilder aus datenbank holen, ACHTUNG: ordner erst leeren um gelöschte bilder in der Datenbank nicht trotzdem einzulesen.
+
     with open(face_gallery, "r") as read_file:
         faces = json.load(read_file)
     print(face_gallery)
@@ -180,9 +182,6 @@ def createMatchingPerson(newReIdVec):
 def findMatchingPerson(newReIdVec):
     global globalReIdVec
     size = len(globalReIdVec)
-    # print(newReIdVec)
-    # print("size=" + str(size))
-
     idx = size
     for i in range(size):
 
@@ -205,18 +204,30 @@ def cosineSimilarity(u,
     # ob die beiden Vectoren ähnlich sind.
     return float(1 - distance.cosine(u, v))
 
-
+def isUnknown(reIdVec):
+    size = len(unknownPersons)
+    for i in range(size):
+       if cosineSimilarity(reIdVec, unknownPersons[i]) > 0.5:
+           return i, False
+    return -1, True
 def main():
+
     global exec_net, exec_net_reid, cap
     args = buildargparser().parse_args();
+
     initReidentification()
     personGallery(args.person_gallery)
-    # loadAllowedFaces()
+
 
     # cap = cv2.VideoCapture("http://192.168.0.35/cgi-bin/videostream.cgi?user=admin&pwd=admin")
     print("init done")
 
+    reallyUnknown = 0;
     while True:
+        test = 100
+        while test > 0:
+            test = test-1
+
         ret, frame = cap.read()
         if not ret:
             break
@@ -268,10 +279,26 @@ def main():
                                         print("Person " + names[foundId] + " wurde erkannt!")
                                         recentlySeen[names[foundId]] = time.time()
                                 else:
-                                    cv2.putText(frame, "Unknown", (xmin, ymin - 7), cv2.FONT_HERSHEY_COMPLEX, 0.8,
-                                                idColor, 1)
+                                    reallyUnknown = reallyUnknown +1
+                                    unknownID,tmp = isUnknown(reIdVector)
+                                    if reallyUnknown > 10 and tmp:
+                                        reallyUnknown = 0
+                                        unknownPersons.append(reIdVector)
+                                        unknownRecentlySeen[len(unknownPersons)-1] = time.time()
+                                        print("Unbekannte Person entdeckt!")
+                                        cv2.putText(frame, "Unknown", (xmin, ymin - 7), cv2.FONT_HERSHEY_COMPLEX, 0.8,
+                                                    idColor, 1)
+                                    if tmp == False:
+                                        reallyUnknown = 0
+                                        if time.time() - unknownRecentlySeen[unknownID] > 10:
+                                            unknownRecentlySeen[unknownID] = time.time()
+                                            print("Unbefugte Person wurde zuvor erkannt")
+                                        cv2.putText(frame, str(unknownID), (xmin, ymin - 7), cv2.FONT_HERSHEY_COMPLEX, 0.8,
+                                                    idColor, 1)
+
+
                 except:
-                    print("exception")
+                    print("exception in main")
 
         cv2.imshow("Facerecognition", frame)
 

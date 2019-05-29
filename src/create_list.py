@@ -27,7 +27,7 @@ def create_list():
     else:
         dir = '.' + os.sep
     '''
-    dir = '/home/reichenecker/PycharmProjects/Facerecognition/Testbilder/test/'
+    dir = '/home/reichenecker/PycharmProjects/Facerecognition/Testbilder/vergleichstest/'
     print(dir)
     files_list = glob.glob(dir + '*.png') + glob.glob(dir + '*.jpg')
     print(files_list)

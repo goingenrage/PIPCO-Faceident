@@ -9,13 +9,17 @@ from openvino.inference_engine import IENetwork, IEPlugin
 from pathlib import Path
 import time
 from src import create_list
+import configparser
 
 from scripts import interfacedb
 
-model_xml = '../models/face-detection-adas-0001.xml'
-model_bin = '../models/face-detection-adas-0001.bin'
-model_reid_xml = '../models/face-reidentification-retail-0095.xml'
-model_reid_bin = '../models/face-reidentification-retail-0095.bin'
+model_xml = ""
+model_bin = ""
+model_reid_xml = ""
+model_reid_bin = ""
+path_to_database = ""
+path_to_tmpfolder = ""
+path_to_cpuextension = ""
 
 globalReIdVec = []
 unknownPersons = []
@@ -37,6 +41,27 @@ out_blob = []
 exec_net = []
 exec_net_reid = []
 cap = None
+
+def init_variables():
+    config = configparser.RawConfigParser()
+    config.read('config.cfg')
+    global model_xml
+    model_xml = config.get('DEFAULT', 'model_xml')
+    global model_bin
+    model_bin = config.get('DEFAULT', 'model_bin')
+
+    global model_reid_xml
+    model_reid_xml = config.get('DEFAULT', 'model_reid_xml')
+    global model_reid_bin
+    model_reid_bin = config.get('DEFAULT', 'model_reid_bin')
+
+    global path_to_database
+    path_to_database = config.get('DEFAULT', 'path_to_database')
+    global path_to_tmpfolder
+    path_to_tmpfolder = config.get('DEFAULT', 'path_to_tmpfolder')
+
+    global path_to_cpuextension
+    path_to_cpuextension = config.get('DEFAULT', 'path_to_cpuextension')
 
 
 def buildargparser():
@@ -63,18 +88,16 @@ def getImagesFromDatabase():
     print("Hole Bilder aus Datenbank")
 
     __clearDirectory()
-    interfacedb.initialize("/home/reichenecker/Dokumente/Semesterprojekt2019/Database/semesterprojekt.db", "/home/reichenecker/PycharmProjects/Facerecognition/Testbilder/test/")
+    interfacedb.initialize(path_to_database, path_to_tmpfolder)
     interfacedb.database_connect()
     interfacedb.get_all_pictures()
 
     create_list.create_list()
 
 
-
-
 def personGallery(face_gallery):
-    getImagesFromDatabase()
-
+    #getImagesFromDatabase()
+    create_list.create_list()
     with open(face_gallery, "r") as read_file:
         faces = json.load(read_file)
     print(face_gallery)
@@ -99,16 +122,15 @@ def personGallery(face_gallery):
 def initReidentification():
     global exec_net, exec_net_reid, input_blob, out_blob, model_n, model_c, model_h, model_w, input_blob_reid, out_blob_reid, model_reid_n, model_reid_c, model_reid_h, model_reid_w
     global cap
+    global path_to_cpuextension
     cap = cv2.VideoCapture(0)
     net = IENetwork(model=model_xml, weights=model_bin)
     net_reid = IENetwork(model=model_reid_xml, weights=model_reid_bin)
 
     plugin = IEPlugin(device="CPU")
-    plugin.add_cpu_extension(
-        "/home/reichenecker/inference_engine_samples_build/intel64/Release/lib/libcpu_extension.so")
+    plugin.add_cpu_extension(path_to_cpuextension)
     plugin_reid = IEPlugin(device="CPU")
-    plugin_reid.add_cpu_extension(
-        "/home/reichenecker/inference_engine_samples_build/intel64/Release/lib/libcpu_extension.so")
+    plugin_reid.add_cpu_extension(path_to_cpuextension)
     # plugin_reid.set_config(net_reid)
     exec_net = plugin.load(network=net, num_requests=1)
     exec_net_reid = plugin_reid.load(network=net_reid, num_requests=1)
@@ -210,11 +232,13 @@ def isUnknown(reIdVec):
        if cosineSimilarity(reIdVec, unknownPersons[i]) > 0.5:
            return i, False
     return -1, True
+
+
 def main():
 
     global exec_net, exec_net_reid, cap
     args = buildargparser().parse_args();
-
+    init_variables()
     initReidentification()
     personGallery(args.person_gallery)
 

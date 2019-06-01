@@ -1,273 +1,195 @@
-import sys
 from scipy.spatial import distance
 import os
-import shutil
 import cv2
 from argparse import ArgumentParser
 import json
 from openvino.inference_engine import IENetwork, IEPlugin
 from pathlib import Path
 import time
+from threading import Thread
 from src import create_list
 import configparser
 
+#from align_transform import AlignFaces
+
 from scripts import interfacedb
 
-model_xml = ""
-model_bin = ""
-model_reid_xml = ""
-model_reid_bin = ""
-path_to_database = ""
-path_to_tmpfolder = ""
-path_to_cpuextension = ""
 
-globalReIdVec = []
-unknownPersons = []
-unknownRecentlySeen = {}
-names = {}
-recentlySeen = {}
-model_n = 0
-model_c = 0
-model_h = 0
-model_w = 0
-model_reid_n = 0
-model_reid_c = 0
-model_reid_h = 0
-model_reid_w = 0
-input_blob_reid = []
-out_blob_reid = []
-input_blob = []
-out_blob = []
-exec_net = []
-exec_net_reid = []
-cap = None
-
-def init_variables():
-    config = configparser.RawConfigParser()
-    config.read('config.cfg')
-    global model_xml
-    model_xml = config.get('DEFAULT', 'model_xml')
-    global model_bin
-    model_bin = config.get('DEFAULT', 'model_bin')
-
-    global model_reid_xml
-    model_reid_xml = config.get('DEFAULT', 'model_reid_xml')
-    global model_reid_bin
-    model_reid_bin = config.get('DEFAULT', 'model_reid_bin')
-
-    global path_to_database
-    path_to_database = config.get('DEFAULT', 'path_to_database')
-    global path_to_tmpfolder
-    path_to_tmpfolder = config.get('DEFAULT', 'path_to_tmpfolder')
-
-    global path_to_cpuextension
-    path_to_cpuextension = config.get('DEFAULT', 'path_to_cpuextension')
+class Gesichtsreidentifikation(Thread):
 
 
-def buildargparser():
-    parser = ArgumentParser()
+    model_xml = ""
+    model_bin = ""
+    model_reid_xml = ""
+    model_reid_bin = ""
+    path_to_database = ""
+    path_to_tmpfolder = ""
+    path_to_cpuextension = ""
 
-    parser.add_argument("-pg", "--person_gallery", help="Pfad zum vorbereitetem person_gallery.json file", default=None)
+    globalReIdVec = []
+    unknownPersons = []
+    unknownRecentlySeen = {}
+    names = {}
+    face_gallery = ""
+    recentlySeen = {}
+    model_n = 0
+    model_c = 0
+    model_h = 0
+    model_w = 0
+    model_reid_n = 0
+    model_reid_c = 0
+    model_reid_h = 0
+    model_reid_w = 0
+    input_blob_reid = []
+    out_blob_reid = []
+    input_blob = []
+    out_blob = []
+    exec_net = []
+    exec_net_reid = []
+    cap = None
+    config_path = ""
 
-    return parser
+    def __init__(self, config_path):
+        self.config_path = config_path
+        super(Gesichtsreidentifikation, self).__init__()
 
 
-def __clearDirectory():
-    folder = '/home/reichenecker/PycharmProjects/Facerecognition/Testbilder/test'
-    for the_file in os.listdir(folder):
-        file_path = os.path.join(folder, the_file)
-        try:
-            if os.path.isfile(file_path):
-                os.unlink(file_path)
-            # elif os.path.isdir(file_path): shutil.rmtree(file_path)
-        except Exception as e:
-            print(e)
+    def init_variables(self):
+        config = configparser.RawConfigParser()
+        config.read(self.config_path)
+
+        self.face_gallery = config.get('DEFAULT', 'face_gallery')
+        self.model_xml = config.get('DEFAULT', 'model_xml')
+
+        self.model_bin = config.get('DEFAULT', 'model_bin')
 
 
-def getImagesFromDatabase():
-    print("Hole Bilder aus Datenbank")
+        self.model_reid_xml = config.get('DEFAULT', 'model_reid_xml')
 
-    __clearDirectory()
-    interfacedb.initialize(path_to_database, path_to_tmpfolder)
-    interfacedb.database_connect()
-    interfacedb.get_all_pictures()
-
-    create_list.create_list()
+        self.model_reid_bin = config.get('DEFAULT', 'model_reid_bin')
 
 
-def personGallery(face_gallery):
-    #getImagesFromDatabase()
-    create_list.create_list()
-    with open(face_gallery, "r") as read_file:
-        faces = json.load(read_file)
-    print(face_gallery)
+        self.path_to_database = config.get('DEFAULT', 'path_to_database')
 
-    id = 0
-    print(faces)
-    for face in faces:
-        print(face)
-        label = face
-        for path in faces[face]:
-            config = Path(path)
-            if not config.is_file():
+        self.path_to_tmpfolder = config.get('DEFAULT', 'path_to_tmpfolder')
+
+
+        self.path_to_cpuextension = config.get('DEFAULT', 'path_to_cpuextension')
+
+
+    def buildargparser(self):
+        parser = ArgumentParser()
+
+        parser.add_argument("-pg", "--person_gallery", help="Pfad zum vorbereitetem person_gallery.json file", default=None)
+
+        return parser
+
+    def save_video_sequence(self,filename):
+        fourcc = cv2.VideoWriter_fourcc(*'XVID')
+        out = cv2.VideoWriter(filename + '.avi', fourcc, 20.0, (640, 480))
+
+        start_time = time.time()
+        while (int(time.time() - start_time) < 15):
+            ret, frame = self.cap.read()
+            if ret == True:
+                frame = cv2.flip(frame, 0)
+                out.write(frame)
+                cv2.imshow('frame', frame)
+            else:
                 break
 
-            image = cv2.imread(path)
-            _, _, _, _, reId = reidentification(image)
-            globalReIdVec.append(reId)
-            names[id] = label
-            id += 1
+
+    def __clearDirectory(self):
+        folder = self.path_to_tmpfolder
+        for the_file in os.listdir(folder):
+            file_path = os.path.join(folder, the_file)
+            try:
+                if os.path.isfile(file_path):
+                    os.unlink(file_path)
+                # elif os.path.isdir(file_path): shutil.rmtree(file_path)
+            except Exception as e:
+                print(e)
 
 
-def initReidentification():
-    global exec_net, exec_net_reid, input_blob, out_blob, model_n, model_c, model_h, model_w, input_blob_reid, out_blob_reid, model_reid_n, model_reid_c, model_reid_h, model_reid_w
-    global cap
-    global path_to_cpuextension
-    cap = cv2.VideoCapture(0)
-    net = IENetwork(model=model_xml, weights=model_bin)
-    net_reid = IENetwork(model=model_reid_xml, weights=model_reid_bin)
+    def getImagesFromDatabase(self):
+        print("Hole Bilder aus Datenbank")
 
-    plugin = IEPlugin(device="CPU")
-    plugin.add_cpu_extension(path_to_cpuextension)
-    plugin_reid = IEPlugin(device="CPU")
-    plugin_reid.add_cpu_extension(path_to_cpuextension)
-    # plugin_reid.set_config(net_reid)
-    exec_net = plugin.load(network=net, num_requests=1)
-    exec_net_reid = plugin_reid.load(network=net_reid, num_requests=1)
+        self.__clearDirectory()
+        interfacedb.initialize(self.path_to_database, self.path_to_tmpfolder)
+        interfacedb.database_connect()
+        interfacedb.get_all_pictures()
 
-    input_blob = next(iter(net.inputs))
-    out_blob = next(iter(net.outputs))
-    print('network.inputs = ' + str(list(net.inputs)))
-    print('network.outputs = ' + str(list(net.outputs)))
-    model_n, model_c, model_h, model_w = net.inputs[input_blob].shape
-
-    input_blob_reid = next(iter(net_reid.inputs))
-    out_blob_reid = next(iter(net_reid.outputs))
-
-    model_reid_n, model_reid_c, model_reid_h, model_reid_w = net_reid.inputs[input_blob_reid].shape
-
-    print('network.inputs = ' + str(list(net_reid.inputs)))
-    print('network.outputs = ' + str(list(net_reid.outputs)))
+        create_list.create_list()
 
 
-def reidentification(image):
+    def personGallery(self):
+        #getImagesFromDatabase()
+        create_list.create_list()
+        with open(self.face_gallery, "r") as read_file:
+            faces = json.load(read_file)
+        print(self.face_gallery)
 
-    
-    global exec_net
+        id = 0
+        print(faces)
+        for face in faces:
+            print(face)
+            label = face
+            for path in faces[face]:
+                config = Path(path)
+                if not config.is_file():
+                    break
 
-    cap_w = cap.get(3)
-    cap_h = cap.get(4)
-    im = cv2.resize(image, (640, 480))
-
-    in_frame = cv2.resize(im, (model_w, model_h))
-    in_frame = in_frame.transpose((2, 0, 1))
-    in_frame = in_frame.reshape((model_n, model_c, model_h, model_w))
-
-    exec_net.start_async(request_id=0, inputs={input_blob: in_frame})
-    try:
-        if exec_net.requests[0].wait(-1) == 0:
-            res = exec_net.requests[0].outputs[out_blob]
-            for obj in res[0][0]:
-                class_id = int(obj[1])
-                if class_id == 1:
-                    if obj[2] > 0.5:
-                        xmin = int(obj[3] * cap_w)
-                        ymin = int(obj[4] * cap_h)
-                        xmax = int(obj[5] * cap_w)
-                        ymax = int(obj[6] * cap_h)
-                        frame_org = im.copy()
-                        person = frame_org[ymin:ymax, xmin:xmax]
-                        in_frame_reid = cv2.resize(person, (model_reid_w, model_reid_h))
-                        in_frame_reid = in_frame_reid.transpose((2, 0, 1))  # Change data layout from HWC to CHW
-                        in_frame_reid = in_frame_reid.reshape((model_reid_n, model_reid_c, model_reid_h, model_reid_w))
-
-                        exec_net_reid.start_async(request_id=0, inputs={input_blob_reid: in_frame_reid})
-
-                        if exec_net_reid.requests[0].wait(-1) == 0:
-                            res_reid = exec_net_reid.requests[0].outputs[out_blob_reid]
-                            reIdVector = res_reid[0].reshape(-1, )
-
-                            return xmin, ymin, xmax, ymax, reIdVector
-    except:
-        print("exception")
-    return 0, 0, 0, 0, None
+                image = cv2.imread(path)
+                _, _, _, _, reId = self.reidentification(image)
+                self.globalReIdVec.append(reId)
+                self.names[id] = label
+                id += 1
 
 
-def createMatchingPerson(newReIdVec):
-    global globalReIdVec
-    size = len(globalReIdVec)
+    def initReidentification(self):
 
-    globalReIdVec.append(newReIdVec)
-    return len(globalReIdVec) - 1
+        self.cap = cv2.VideoCapture(0)
+        net = IENetwork(model=self.model_xml, weights=self.model_bin)
+        net_reid = IENetwork(model=self.model_reid_xml, weights=self.model_reid_bin)
 
+        plugin = IEPlugin(device="CPU")
+        plugin.add_cpu_extension(self.path_to_cpuextension)
+        plugin_reid = IEPlugin(device="CPU")
+        plugin_reid.add_cpu_extension(self.path_to_cpuextension)
+        # plugin_reid.set_config(net_reid)
+        self.exec_net = plugin.load(network=net, num_requests=1)
+        self.exec_net_reid = plugin_reid.load(network=net_reid, num_requests=1)
 
-def findMatchingPerson(newReIdVec):
-    global globalReIdVec
-    size = len(globalReIdVec)
-    idx = size
-    for i in range(size):
+        self.input_blob = next(iter(net.inputs))
+        self.out_blob = next(iter(net.outputs))
+        print('network.inputs = ' + str(list(net.inputs)))
+        print('network.outputs = ' + str(list(net.outputs)))
+        self.model_n, self.model_c, self.model_h, self.model_w = net.inputs[self.input_blob].shape
 
-        cosSim = cosineSimilarity(newReIdVec, globalReIdVec[i])
-        #print(cosSim)
-        if cosSim > 0.5:
-            # globalReIdVec[i] = newReIdVec.copy() #ist es sinnvoll bei einem erkannten gesicht den vector zu aktualisieren?
-            # was passiert bei einer falschen erkennung?
-            idx = i
-            break
+        self.input_blob_reid = next(iter(net_reid.inputs))
+        self.out_blob_reid = next(iter(net_reid.outputs))
 
-    if idx < size:
-        return idx
-    else:
-        return -1
+        self.model_reid_n, self.model_reid_c, self.model_reid_h, self.model_reid_w = net_reid.inputs[self.input_blob_reid].shape
 
-
-def cosineSimilarity(u,
-                     v):  # Durch die Berechnung der Cosinus-Ähnlichkeit (siehe https://en.wikipedia.org/wiki/Cosine_similarity) wird verglichen,
-    # ob die beiden Vectoren ähnlich sind.
-    return float(1 - distance.cosine(u, v))
-
-def isUnknown(reIdVec):
-    size = len(unknownPersons)
-    for i in range(size):
-       if cosineSimilarity(reIdVec, unknownPersons[i]) > 0.5:
-           return i, False
-    return -1, True
+        print('network.inputs = ' + str(list(net_reid.inputs)))
+        print('network.outputs = ' + str(list(net_reid.outputs)))
 
 
-def main():
+    def reidentification(self,image):
 
-    global exec_net, exec_net_reid, cap
-    args = buildargparser().parse_args();
-    init_variables()
-    initReidentification()
-    personGallery(args.person_gallery)
+        cap_w = self.cap.get(3)
+        cap_h = self.cap.get(4)
+        im = cv2.resize(image, (640, 480))
 
-
-    # cap = cv2.VideoCapture("http://192.168.0.35/cgi-bin/videostream.cgi?user=admin&pwd=admin")
-    print("init done")
-
-    reallyUnknown = 0;
-    while True:
-        test = 100
-        while test > 0:
-            test = test-1
-
-        ret, frame = cap.read()
-        if not ret:
-            break
-        cap_w = cap.get(3)
-        cap_h = cap.get(4)
-        in_frame = cv2.resize(frame, (model_w, model_h))
+        in_frame = cv2.resize(im, (self.model_w, self.model_h))
         in_frame = in_frame.transpose((2, 0, 1))
-        in_frame = in_frame.reshape((model_n, model_c, model_h, model_w))
+        in_frame = in_frame.reshape((self.model_n, self.model_c, self.model_h, self.model_w))
 
-        exec_net.start_async(request_id=0, inputs={input_blob: in_frame})
-
-        if exec_net.requests[0].wait(-1) == 0:
-
-            res = exec_net.requests[0].outputs[out_blob]
-            for obj in res[0][0]:
-                try:
+        self.exec_net.start_async(request_id=0, inputs={self.input_blob: in_frame})
+        try:
+            if self.exec_net.requests[0].wait(-1) == 0:
+                res = self.exec_net.requests[0].outputs[self.out_blob]
+                for obj in res[0][0]:
                     class_id = int(obj[1])
                     if class_id == 1:
                         if obj[2] > 0.5:
@@ -275,65 +197,190 @@ def main():
                             ymin = int(obj[4] * cap_h)
                             xmax = int(obj[5] * cap_w)
                             ymax = int(obj[6] * cap_h)
-                            frame_org = frame.copy()
+                            frame_org = im.copy()
                             person = frame_org[ymin:ymax, xmin:xmax]
-                            in_frame_reid = cv2.resize(person, (model_reid_w, model_reid_h))
+                            in_frame_reid = cv2.resize(person, (self.model_reid_w, self.model_reid_h))
                             in_frame_reid = in_frame_reid.transpose((2, 0, 1))  # Change data layout from HWC to CHW
-                            in_frame_reid = in_frame_reid.reshape(
-                                (model_reid_n, model_reid_c, model_reid_h, model_reid_w))
+                            in_frame_reid = in_frame_reid.reshape((self.model_reid_n, self.model_reid_c, self.model_reid_h, self.model_reid_w))
 
-                            exec_net_reid.start_async(request_id=0, inputs={input_blob_reid: in_frame_reid})
+                            self.exec_net_reid.start_async(request_id=0, inputs={self.input_blob_reid: in_frame_reid})
 
-                            if exec_net_reid.requests[0].wait(-1) == 0:
-                                res_reid = exec_net_reid.requests[0].outputs[out_blob_reid]
+                            if self.exec_net_reid.requests[0].wait(-1) == 0:
+                                res_reid = self.exec_net_reid.requests[0].outputs[self.out_blob_reid]
                                 reIdVector = res_reid[0].reshape(-1, )
 
-                                foundId = findMatchingPerson(reIdVector)
-
-                                color = (255, 0, 0)
-                                cv2.rectangle(frame, (xmin, ymin), (xmax, ymax), color, 2)
-                                idColor = (0, 0, 255)
-                                #print(foundId)
-                                if foundId is not -1:
-                                    cv2.putText(frame, names[foundId], (xmin, ymin - 7), cv2.FONT_HERSHEY_COMPLEX, 0.8,
-                                                idColor,
-                                                1)
-                                    #Hier soll geprüft werden, wann die Person zuletzt gesehen wurde, um Aktionen nicht bei jedem Frame auszuführen.
-                                    if not recentlySeen.__contains__(names[foundId]) or (time.time() - recentlySeen[names[foundId]]) > 10:
-                                        print("Person " + names[foundId] + " wurde erkannt!")
-                                        recentlySeen[names[foundId]] = time.time()
-                                else:
-                                    reallyUnknown = reallyUnknown +1
-                                    unknownID,tmp = isUnknown(reIdVector)
-                                    if reallyUnknown > 10 and tmp:
-                                        reallyUnknown = 0
-                                        unknownPersons.append(reIdVector)
-                                        unknownRecentlySeen[len(unknownPersons)-1] = time.time()
-                                        print("Unbekannte Person entdeckt!")
-                                        cv2.putText(frame, "Unknown", (xmin, ymin - 7), cv2.FONT_HERSHEY_COMPLEX, 0.8,
-                                                    idColor, 1)
-                                    if tmp == False:
-                                        reallyUnknown = 0
-                                        if time.time() - unknownRecentlySeen[unknownID] > 10:
-                                            unknownRecentlySeen[unknownID] = time.time()
-                                            print("Unbefugte Person wurde zuvor erkannt")
-                                        cv2.putText(frame, str(unknownID), (xmin, ymin - 7), cv2.FONT_HERSHEY_COMPLEX, 0.8,
-                                                    idColor, 1)
+                                return xmin, ymin, xmax, ymax, reIdVector
+        except Exception as e:
+            print("exception")
+        return 0, 0, 0, 0, None
 
 
-                except:
-                    print("exception in main")
+    def createMatchingPerson(self, newReIdVec):
 
-        cv2.imshow("Facerecognition", frame)
+        size = len(self.globalReIdVec)
 
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            cap.release()
-            break
+        self.globalReIdVec.append(newReIdVec)
+        return len(self.globalReIdVec) - 1
 
 
-cv2.destroyAllWindows()
-del exec_net
-del exec_net_reid
+    def findMatchingPerson(self, newReIdVec):
 
-if __name__ == '__main__':
-    sys.exit(main() or 0)
+        size = len(self.globalReIdVec)
+        idx = size
+        for i in range(size):
+
+            cosSim = self.cosineSimilarity(newReIdVec, self.globalReIdVec[i])
+            #print(cosSim)
+            if cosSim > 0.5:
+                # globalReIdVec[i] = newReIdVec.copy() #ist es sinnvoll bei einem erkannten gesicht den vector zu aktualisieren?
+                # was passiert bei einer falschen erkennung?
+                idx = i
+                break
+
+        if idx < size:
+            return idx
+        else:
+            return -1
+
+
+    def cosineSimilarity(self, u,v):
+        # Durch die Berechnung der Cosinus-Ähnlichkeit (siehe https://en.wikipedia.org/wiki/Cosine_similarity) wird verglichen,
+        # ob die beiden Vectoren ähnlich sind.
+        return float(1 - distance.cosine(u, v))
+
+    def isUnknown(self, reIdVec):
+        size = len(self.unknownPersons)
+        for i in range(size):
+           if self.cosineSimilarity(reIdVec, self.unknownPersons[i]) > 0.5:
+               return i, False
+        return -1, True
+
+
+    def run(self):
+
+
+        args = self.buildargparser().parse_args();
+        self.init_variables()
+        self.initReidentification()
+        self.personGallery()
+        filename = ""
+        start_recording = False
+        start_time = 0
+        fourcc = cv2.VideoWriter_fourcc(*'XVID')
+        out = None
+        # cap = cv2.VideoCapture("http://192.168.0.35/cgi-bin/videostream.cgi?user=admin&pwd=admin")
+        print("init done")
+
+        reallyUnknown = 0;
+        while True:
+            test = 100
+            while test > 0:
+                test = test-1
+
+            ret, frame = self.cap.read()
+            if not ret:
+                break
+            cap_w = self.cap.get(3)
+            cap_h = self.cap.get(4)
+            in_frame = cv2.resize(frame, (self.model_w, self.model_h))
+            in_frame = in_frame.transpose((2, 0, 1))
+            in_frame = in_frame.reshape((self.model_n, self.model_c, self.model_h, self.model_w))
+
+            self.exec_net.start_async(request_id=0, inputs={self.input_blob: in_frame})
+
+            if self.exec_net.requests[0].wait(-1) == 0:
+
+                res = self.exec_net.requests[0].outputs[self.out_blob]
+                allowed_person_in_room = False
+                unallowed_person_in_room = False
+                for obj in res[0][0]:
+                    try:
+                        class_id = int(obj[1])
+                        if class_id == 1:
+                            if obj[2] > 0.5:
+                                xmin = int(obj[3] * cap_w)
+                                ymin = int(obj[4] * cap_h)
+                                xmax = int(obj[5] * cap_w)
+                                ymax = int(obj[6] * cap_h)
+                                frame_org = frame.copy()
+                                person = frame_org[ymin:ymax, xmin:xmax]
+                                in_frame_reid = cv2.resize(person, (self.model_reid_w, self.model_reid_h))
+                                in_frame_reid = in_frame_reid.transpose((2, 0, 1))  # Change data layout from HWC to CHW
+                                in_frame_reid = in_frame_reid.reshape(
+                                    (self.model_reid_n, self.model_reid_c, self.model_reid_h, self.model_reid_w))
+
+                                self.exec_net_reid.start_async(request_id=0, inputs={self.input_blob_reid: in_frame_reid})
+
+                                if self.exec_net_reid.requests[0].wait(-1) == 0:
+                                    res_reid = self.exec_net_reid.requests[0].outputs[self.out_blob_reid]
+                                    reIdVector = res_reid[0].reshape(-1, )
+
+                                    foundId = self.findMatchingPerson(reIdVector)
+
+                                    color = (255, 0, 0)
+                                    cv2.rectangle(frame, (xmin, ymin), (xmax, ymax), color, 2)
+                                    idColor = (0, 0, 255)
+                                    #print(foundId)
+                                    if foundId is not -1:
+                                        cv2.putText(frame, self.names[foundId], (xmin, ymin - 7), cv2.FONT_HERSHEY_COMPLEX, 0.8,
+                                                    idColor,
+                                                    1)
+                                        #Hier soll geprüft werden, wann die Person zuletzt gesehen wurde, um Aktionen nicht bei jedem Frame auszuführen.
+                                        if not self.recentlySeen.__contains__(self.names[foundId]) or (time.time() - self.recentlySeen[self.names[foundId]]) > 10:
+                                            print("Person " + self.names[foundId] + " wurde erkannt!")
+                                            self.recentlySeen[self.names[foundId]] = time.time()
+                                            allowed_person_in_room = True
+
+
+                                    else:
+                                        reallyUnknown = reallyUnknown +1
+                                        unknownID,tmp = self.isUnknown(reIdVector)
+                                        if reallyUnknown > 10 and tmp:
+                                            reallyUnknown = 0
+                                            unallowed_person_in_room = True
+                                            self.unknownPersons.append(reIdVector)
+                                            self.unknownRecentlySeen[len(self.unknownPersons)-1] = time.time()
+                                            print("Unbekannte Person entdeckt!")
+                                            cv2.putText(frame, "Unknown", (xmin, ymin - 7), cv2.FONT_HERSHEY_COMPLEX, 0.8,
+                                                        idColor, 1)
+                                        if tmp == False:
+                                            reallyUnknown = 0
+
+                                            if time.time() - self.unknownRecentlySeen[unknownID] > 100:
+                                                self.unknownRecentlySeen[unknownID] = time.time()
+                                                print("Unbefugte Person wurde zuvor erkannt")
+                                            cv2.putText(frame, str(unknownID), (xmin, ymin - 7), cv2.FONT_HERSHEY_COMPLEX, 0.8,
+                                                        idColor, 1)
+
+
+                    except Exception as e:
+                        print("exception in main" + str(e))
+            if not start_recording and allowed_person_in_room and unallowed_person_in_room:
+                print("Start recording...")
+                start_recording = True
+                start_time = time.time()
+                filename = time.strftime("mit_berechtigtem_%d_%m_%Y_%H_%M_%S")
+                out = cv2.VideoWriter(filename + '.mp4', fourcc, 20.0, (640, 480))
+            if not start_recording and unallowed_person_in_room and not allowed_person_in_room:
+                print("Start recording...")
+                start_recording = True
+                start_time = time.time()
+                filename = time.strftime("ohne_berechtigtem_%d_%m_%Y_%H_%M_%S")
+                out = cv2.VideoWriter(filename + '.avi', fourcc, 20.0, (640, 480))
+
+            if start_recording:
+                out.write(frame)
+                if time.time() - start_time > 50:
+                    start_recording = False
+                    print("Recording end...")
+
+
+            cv2.imshow("Facerecognition", frame)
+
+            if cv2.waitKey(1) & 0xFF == ord('q'):
+                self.cap.release()
+                cv2.destroyAllWindows()
+                del self.exec_net
+                del self.exec_net_reid
+                break
+

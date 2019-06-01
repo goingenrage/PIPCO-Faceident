@@ -48,6 +48,7 @@ class Gesichtsreidentifikation(Thread):
     exec_net_reid = []
     cap = None
     config_path = ""
+    path_to_camera = ""
 
     def __init__(self, config_path):
         self.config_path = config_path
@@ -73,7 +74,7 @@ class Gesichtsreidentifikation(Thread):
 
         self.path_to_tmpfolder = config.get('DEFAULT', 'path_to_tmpfolder')
 
-
+        self.path_to_camera = config.get('DEFAULT', 'path_to_camera')
         self.path_to_cpuextension = config.get('DEFAULT', 'path_to_cpuextension')
 
 
@@ -147,8 +148,10 @@ class Gesichtsreidentifikation(Thread):
 
 
     def initReidentification(self):
-
-        self.cap = cv2.VideoCapture(0)
+        if self.path_to_camera == '0':
+            self.cap = cv2.VideoCapture(0)
+        else:
+            self.cap = cv2.VideoCapture(self.path_to_camera)
         net = IENetwork(model=self.model_xml, weights=self.model_bin)
         net_reid = IENetwork(model=self.model_reid_xml, weights=self.model_reid_bin)
 

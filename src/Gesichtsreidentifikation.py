@@ -1,7 +1,7 @@
 from scipy.spatial import distance
 import os
 import cv2
-from argparse import ArgumentParser
+
 import json
 from openvino.inference_engine import IENetwork, IEPlugin
 from pathlib import Path
@@ -9,8 +9,10 @@ import time
 from threading import Thread
 from src import create_list
 import configparser
+from Daten import Daten
+import logging
+from Mail import Mail
 
-#from align_transform import AlignFaces
 
 from scripts import interfacedb
 
@@ -25,6 +27,7 @@ class Gesichtsreidentifikation(Thread):
     path_to_database = ""
     path_to_tmpfolder = ""
     path_to_cpuextension = ""
+    path_to_outputvid = ""
 
     globalReIdVec = []
     unknownPersons = []
@@ -50,8 +53,11 @@ class Gesichtsreidentifikation(Thread):
     config_path = ""
     path_to_camera = ""
 
+
     def __init__(self, config_path):
         self.config_path = config_path
+        self.data = Daten.get_instance()
+        self.mailing = Mail()
         super(Gesichtsreidentifikation, self).__init__()
 
 
@@ -76,28 +82,7 @@ class Gesichtsreidentifikation(Thread):
 
         self.path_to_camera = config.get('DEFAULT', 'path_to_camera')
         self.path_to_cpuextension = config.get('DEFAULT', 'path_to_cpuextension')
-
-
-    def buildargparser(self):
-        parser = ArgumentParser()
-
-        parser.add_argument("-pg", "--person_gallery", help="Pfad zum vorbereitetem person_gallery.json file", default=None)
-
-        return parser
-
-    def save_video_sequence(self,filename):
-        fourcc = cv2.VideoWriter_fourcc(*'XVID')
-        out = cv2.VideoWriter(filename + '.avi', fourcc, 20.0, (640, 480))
-
-        start_time = time.time()
-        while (int(time.time() - start_time) < 15):
-            ret, frame = self.cap.read()
-            if ret == True:
-                frame = cv2.flip(frame, 0)
-                out.write(frame)
-                cv2.imshow('frame', frame)
-            else:
-                break
+        self.path_to_outputvid = config.get('DEFAULT', 'path_to_outputvid')
 
 
     def __clearDirectory(self):
@@ -120,7 +105,7 @@ class Gesichtsreidentifikation(Thread):
         interfacedb.database_connect()
         interfacedb.get_all_pictures()
 
-        create_list.create_list()
+        ##create_list.create_list()
 
 
     def personGallery(self):
@@ -262,7 +247,6 @@ class Gesichtsreidentifikation(Thread):
     def run(self):
 
 
-        args = self.buildargparser().parse_args();
         self.init_variables()
         self.initReidentification()
         self.personGallery()
@@ -276,9 +260,7 @@ class Gesichtsreidentifikation(Thread):
 
         reallyUnknown = 0;
         while True:
-            test = 100
-            while test > 0:
-                test = test-1
+
 
             ret, frame = self.cap.read()
             if not ret:
@@ -290,12 +272,12 @@ class Gesichtsreidentifikation(Thread):
             in_frame = in_frame.reshape((self.model_n, self.model_c, self.model_h, self.model_w))
 
             self.exec_net.start_async(request_id=0, inputs={self.input_blob: in_frame})
-
+            allowed_person_in_room = False
+            unallowed_person_in_room = False
             if self.exec_net.requests[0].wait(-1) == 0:
 
                 res = self.exec_net.requests[0].outputs[self.out_blob]
-                allowed_person_in_room = False
-                unallowed_person_in_room = False
+
                 for obj in res[0][0]:
                     try:
                         class_id = int(obj[1])
@@ -308,7 +290,7 @@ class Gesichtsreidentifikation(Thread):
                                 frame_org = frame.copy()
                                 person = frame_org[ymin:ymax, xmin:xmax]
                                 in_frame_reid = cv2.resize(person, (self.model_reid_w, self.model_reid_h))
-                                in_frame_reid = in_frame_reid.transpose((2, 0, 1))  # Change data layout from HWC to CHW
+                                in_frame_reid = in_frame_reid.transpose((2, 0, 1))
                                 in_frame_reid = in_frame_reid.reshape(
                                     (self.model_reid_n, self.model_reid_c, self.model_reid_h, self.model_reid_w))
 
@@ -328,11 +310,13 @@ class Gesichtsreidentifikation(Thread):
                                         cv2.putText(frame, self.names[foundId], (xmin, ymin - 7), cv2.FONT_HERSHEY_COMPLEX, 0.8,
                                                     idColor,
                                                     1)
+                                        allowed_person_in_room = True
                                         #Hier soll geprüft werden, wann die Person zuletzt gesehen wurde, um Aktionen nicht bei jedem Frame auszuführen.
                                         if not self.recentlySeen.__contains__(self.names[foundId]) or (time.time() - self.recentlySeen[self.names[foundId]]) > 10:
                                             print("Person " + self.names[foundId] + " wurde erkannt!")
+                                            logging.info("Person " + self.names[foundId] + " wurde erkannt!")
                                             self.recentlySeen[self.names[foundId]] = time.time()
-                                            allowed_person_in_room = True
+
 
 
                                     else:
@@ -344,40 +328,44 @@ class Gesichtsreidentifikation(Thread):
                                             self.unknownPersons.append(reIdVector)
                                             self.unknownRecentlySeen[len(self.unknownPersons)-1] = time.time()
                                             print("Unbekannte Person entdeckt!")
+                                            self.mailing.send_message("ACHTUNG!", "Unbekannte Person entdeckt!", "test")
+                                            logging.warning("Unbekannte Person entdeckt!")
                                             cv2.putText(frame, "Unknown", (xmin, ymin - 7), cv2.FONT_HERSHEY_COMPLEX, 0.8,
                                                         idColor, 1)
                                         if tmp == False:
                                             reallyUnknown = 0
-
+                                            unallowed_person_in_room = True
                                             if time.time() - self.unknownRecentlySeen[unknownID] > 100:
                                                 self.unknownRecentlySeen[unknownID] = time.time()
                                                 print("Unbefugte Person wurde zuvor erkannt")
+                                                logging.warning("Unbefugte Person wurde zuvor erkannt")
                                             cv2.putText(frame, str(unknownID), (xmin, ymin - 7), cv2.FONT_HERSHEY_COMPLEX, 0.8,
                                                         idColor, 1)
 
 
                     except Exception as e:
                         print("exception in main" + str(e))
-            if not start_recording and allowed_person_in_room and unallowed_person_in_room:
-                print("Start recording...")
-                start_recording = True
-                start_time = time.time()
-                filename = time.strftime("mit_berechtigtem_%d_%m_%Y_%H_%M_%S")
-                out = cv2.VideoWriter(filename + '.mp4', fourcc, 20.0, (640, 480))
-            if not start_recording and unallowed_person_in_room and not allowed_person_in_room:
-                print("Start recording...")
-                start_recording = True
-                start_time = time.time()
-                filename = time.strftime("ohne_berechtigtem_%d_%m_%Y_%H_%M_%S")
-                out = cv2.VideoWriter(filename + '.avi', fourcc, 20.0, (640, 480))
+                # print(str(allowed_person_in_room) + " " + str(unallowed_person_in_room))
+                if not start_recording and allowed_person_in_room and unallowed_person_in_room:
+                    print("Start recording with allowed person...")
+                    start_recording = True
+                    start_time = time.time()
+                    filename = time.strftime("mit_berechtigtem_%d_%m_%Y_%H_%M_%S")
+                    out = cv2.VideoWriter(self.path_to_outputvid + filename + '.avi', fourcc, 20.0, (640, 480))
+                if not start_recording and unallowed_person_in_room and not allowed_person_in_room:
+                    print("Start recording...")
+                    start_recording = True
+                    start_time = time.time()
+                    filename = time.strftime("ohne_berechtigtem_%d_%m_%Y_%H_%M_%S")
+                    out = cv2.VideoWriter(self.path_to_outputvid + filename + '.avi', fourcc, 20.0, (640, 480))
 
-            if start_recording:
-                out.write(frame)
-                if time.time() - start_time > 50:
-                    start_recording = False
-                    print("Recording end...")
-
-
+                if start_recording:
+                    out.write(frame)
+                    if time.time() - start_time > 50:
+                        start_recording = False
+                        print("Recording end...")
+            ret2, jpg = cv2.imencode('.jpg', frame)
+            self.data.set_image(jpg)
             cv2.imshow("Facerecognition", frame)
 
             if cv2.waitKey(1) & 0xFF == ord('q'):

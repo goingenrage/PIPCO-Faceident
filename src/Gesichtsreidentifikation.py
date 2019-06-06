@@ -9,9 +9,9 @@ import time
 from threading import Thread
 from src import create_list
 import configparser
-from Daten import Daten
+from src.DataStorage import *
 import logging
-from Mail import Mail
+from src.Mail import Mail
 
 
 from scripts import interfacedb
@@ -56,7 +56,7 @@ class Gesichtsreidentifikation(Thread):
 
     def __init__(self, config_path):
         self.config_path = config_path
-        self.data = Daten.get_instance()
+        self.data = PipcoDaten.get_instance()
         self.mailing = Mail()
         super(Gesichtsreidentifikation, self).__init__()
 
@@ -105,12 +105,12 @@ class Gesichtsreidentifikation(Thread):
         interfacedb.database_connect()
         interfacedb.get_all_pictures()
 
-        ##create_list.create_list()
+        ##create_list.create_list(self.path_to_tmpfolder)
 
 
     def personGallery(self):
         #getImagesFromDatabase()
-        create_list.create_list()
+        create_list.create_list(self.path_to_tmpfolder)
         with open(self.face_gallery, "r") as read_file:
             faces = json.load(read_file)
         print(self.face_gallery)
@@ -255,7 +255,7 @@ class Gesichtsreidentifikation(Thread):
         start_time = 0
         fourcc = cv2.VideoWriter_fourcc(*'XVID')
         out = None
-        # cap = cv2.VideoCapture("http://192.168.0.35/cgi-bin/videostream.cgi?user=admin&pwd=admin")
+        #self.cap = cv2.VideoCapture("http://192.168.0.35/cgi-bin/videostream.cgi?user=admin&pwd=admin")
         print("init done")
 
         reallyUnknown = 0;
@@ -265,6 +265,8 @@ class Gesichtsreidentifikation(Thread):
             ret, frame = self.cap.read()
             if not ret:
                 break
+            ret2, jpg = cv2.imencode('.jpg', frame)
+            self.data.set_image_without(jpg)
             cap_w = self.cap.get(3)
             cap_h = self.cap.get(4)
             in_frame = cv2.resize(frame, (self.model_w, self.model_h))
@@ -365,7 +367,7 @@ class Gesichtsreidentifikation(Thread):
                         start_recording = False
                         print("Recording end...")
             ret2, jpg = cv2.imencode('.jpg', frame)
-            self.data.set_image(jpg)
+            self.data.set_image_fr(jpg)
             cv2.imshow("Facerecognition", frame)
 
             if cv2.waitKey(1) & 0xFF == ord('q'):

@@ -20,14 +20,14 @@ import os
 import json
 import sys
 
-def create_list():
+def create_list(dir):
     '''
     if len(sys.argv) == 2:
         dir = sys.argv[1]
     else:
         dir = '.' + os.sep
     '''
-    dir = '/home/reichenecker/PycharmProjects/Facerecognition/Testbilder/vergleichstest/'
+
     print(dir)
     files_list = glob.glob(dir + '*.png') + glob.glob(dir + '*.jpg')
     print(files_list)
@@ -44,6 +44,6 @@ def create_list():
             labels.append(label)
             objects[label] = [path]
 
-    with open('/home/reichenecker/PycharmProjects/Facerecognition/Testbilder/test/faces_gallery.json', 'w') as outfile:
+    with open(dir + 'faces_gallery.json', 'w') as outfile:
         json.dump(objects, outfile)
     print("Done...")

@@ -30,6 +30,7 @@ class Webserver:
         CORS(self.app)
         self.data = PipcoDaten.get_instance()
         self.settings = self.data.get_settings()
+        self.local_cam_mode = int(self.settings.cam_mode)
 
     def add_header(self, r):
         r.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
@@ -39,25 +40,25 @@ class Webserver:
         return r
 
     def gen(self):
+        print("in gen...")
         """Creates generator object with returning frames"""
+        x = self.local_cam_mode
         while True:
                 time.sleep(1/self.data.m_stream_fps)
+
+                #print(self.local_cam_mode)
+                if self.local_cam_mode == 0:
+                    frame = self.data.get_image_without().tobytes()
+                if self.local_cam_mode == 1:
+                    frame = self.data.get_image().tobytes()
+                if self.local_cam_mode == 2:
+                    frame = self.data.get_image_fr().tobytes()
                 yield (b'--frame\r\n'
-                       b'Content-Type: image/jpeg\r\n\r\n' + self.data.get_image().tobytes() + b'\r\n\r\n')
+                       b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n\r\n')
 
 
-    def gen_fr(self):
-        """Creates generator object with returning frames"""
-        while True:
-                time.sleep(1/self.data.m_stream_fps)
-                yield (b'--frame\r\n'
-                       b'Content-Type: image/jpeg\r\n\r\n' + self.data.get_image_fr().tobytes() + b'\r\n\r\n')
-    def gen_without(self):
-        """Creates generator object with returning frames"""
-        while True:
-                time.sleep(1/self.data.m_stream_fps)
-                yield (b'--frame\r\n'
-                       b'Content-Type: image/jpeg\r\n\r\n' + self.data.get_image_without().tobytes() + b'\r\n\r\n')
+
+
 
     def get_recording(self, filename):
         return send_from_directory("data/recordings/", filename, mimetype="video/mp4")
@@ -72,7 +73,9 @@ class Webserver:
 
     def change_get_config(self):
         try:
+
             if request.method == 'POST':
+                print("change_get_config: POST")
                 data = request.get_json()
                 sensitivity = data.get('sensitivity')
                 streamaddress = data.get('streamaddress')
@@ -84,9 +87,11 @@ class Webserver:
                 cliplength = data.get('cliplength')
                 log_enabled = data.get('log_enabled')
                 cam_mode = data.get('cam_mode')
+                self.local_cam_mode = int(cam_mode)
                 return response(json.dumps(self.data.change_settings(sensitivity, brightness, contrast, streamaddress,
                                                                      global_notify, log_enabled, cliplength, max_logs, max_storage, cam_mode)))
             else:
+                print("change_get_config: GET")
                 return response(json.dumps(self.data.get_settings(), cls=MessageEncoder))
         except Exception:
             return Webserver.ERROR
@@ -133,17 +138,12 @@ class Webserver:
         return response(json.dumps(list(self.data.get_log_page(page_no,batch_size).values()), cls=MessageEncoder))
 
     def video_feed(self):
-        print(self.settings.cam_mode)
-        if self.data.get_image_fr() is not None and self.settings.cam_mode == 2:
-            return Response(self.gen_fr(),
+
+        print("in video_feed...")
+
+        return Response(self.gen(),
                             mimetype='multipart/x-mixed-replace; boundary=frame')
 
-        if self.data.get_image() is not None and self.settings.cam_mode == 1:
-            return Response(self.gen(),
-                            mimetype='multipart/x-mixed-replace; boundary=frame')
-        if self.data.get_image_without() is not None and self.settings.cam_mode == 0:
-            return Response(self.gen_without(),
-                            mimetype='multipart/x-mixed-replace; boundary=frame')
 
         return "no images available"
 

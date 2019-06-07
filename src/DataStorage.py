@@ -39,6 +39,7 @@ class PipcoDaten:
             self.__m_user = USER
             self.__m_password = PASSWORD
             self.m_stream_fps = 30
+            self.m_data_persistence.save_settings(self.__m_settings)
 
     @staticmethod
     def get_instance():
@@ -88,7 +89,7 @@ class PipcoDaten:
             return ret
 
     def change_settings(self, sensitivity=None, brightness=None, contrast=None, streamaddress=None, global_notify=None,
-                        log_enabled=None, cliplength=None, max_logs=None, max_storage=None, stream_data=None):
+                        log_enabled=None, cliplength=None, max_logs=None, max_storage=None, cam_mode=None):
         with self.__m_setting_lock:
             ret = {}
             if sensitivity is not None:
@@ -118,9 +119,9 @@ class PipcoDaten:
             if max_storage is not None:
                 ret["max_storage"] = max_storage
                 self.__m_settings.max_storage = int(max_storage)
-            if max_storage is not None:
-                ret["stream_data"] = stream_data
-                self.__m_settings.stream_data = int(stream_data)
+            if cam_mode is not None:
+                ret["cam_mode"] = cam_mode
+                self.__m_settings.cam_mode = int(cam_mode)
             self.m_data_persistence.save_settings(self.__m_settings)
             return ret
 
@@ -236,7 +237,7 @@ class Log:
 
 class Settings:
     def __init__(self, sensitivity=0.0, brightness=0.0, contrast=0.5, streamaddress="", global_notify=True,
-                 log_enabled=True, cliplength=30, max_logs=5, max_storage=2048, stream_data = 0):
+                 log_enabled=True, cliplength=30, max_logs=5, max_storage=2048, cam_mode = 2):
         self.sensitivity = sensitivity
         self.streamaddress = streamaddress
         self.brightness = brightness
@@ -246,4 +247,5 @@ class Settings:
         self.cliplength = cliplength
         self.max_logs = max_logs
         self.max_storage = max_storage
-        self.stream_data = stream_data
+        self.cam_mode = cam_mode
+

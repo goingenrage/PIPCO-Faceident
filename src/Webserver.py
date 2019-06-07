@@ -83,9 +83,9 @@ class Webserver:
                 max_logs = data.get('max_logs')
                 cliplength = data.get('cliplength')
                 log_enabled = data.get('log_enabled')
-                stream_data = data.get('stream_data')
+                cam_mode = data.get('cam_mode')
                 return response(json.dumps(self.data.change_settings(sensitivity, brightness, contrast, streamaddress,
-                                                                     global_notify, log_enabled, cliplength, max_logs, max_storage, stream_data)))
+                                                                     global_notify, log_enabled, cliplength, max_logs, max_storage, cam_mode)))
             else:
                 return response(json.dumps(self.data.get_settings(), cls=MessageEncoder))
         except Exception:
@@ -133,14 +133,15 @@ class Webserver:
         return response(json.dumps(list(self.data.get_log_page(page_no,batch_size).values()), cls=MessageEncoder))
 
     def video_feed(self):
-        if self.data.get_image_fr() is not None and self.settings.stream_data == 0:
+        print(self.settings.cam_mode)
+        if self.data.get_image_fr() is not None and self.settings.cam_mode == 2:
             return Response(self.gen_fr(),
                             mimetype='multipart/x-mixed-replace; boundary=frame')
 
-        if self.data.get_image() is not None and self.settings.stream_data == 1:
+        if self.data.get_image() is not None and self.settings.cam_mode == 1:
             return Response(self.gen(),
                             mimetype='multipart/x-mixed-replace; boundary=frame')
-        if self.data.get_image_without() is not None and self.settings.stream_data == 2:
+        if self.data.get_image_without() is not None and self.settings.cam_mode == 0:
             return Response(self.gen_without(),
                             mimetype='multipart/x-mixed-replace; boundary=frame')
 

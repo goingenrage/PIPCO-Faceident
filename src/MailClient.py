@@ -1,14 +1,15 @@
 from smtplib import SMTP_SSL as SMTP
 from email.mime.text import MIMEText
 from builtins import input
+import time
 import threading
 
 class MailClient:
 
     def __init__(self, data):
         self.data = data
-        self.login = input("mail login:")
-        self.password = input("password:")
+        self.login = "gesichtsreidentifikation"
+        self.password = "password123"
         self.provider = "mail.de"
 
     def __send_message(self, subject, content, recipients):
@@ -34,6 +35,13 @@ class MailClient:
     def notify_motion_detected(self):
         subject = "Bewegung erkannt"
         message = "Haben Sie sich gerade bewegt? Falls nein, werden Sie wahrscheinlich gerade ausgeraubt."
+        recipients = [mail.address for mail in self.data.get_mails().values() if mail.notify]
+        thread = threading.Thread(target=self.__send_message, args=[subject, message, recipients])
+        thread.start()
+
+    def notify_unknown_person_detected(self):
+        subject = "Unbekannte Person erkannt!"
+        message = "Am " + time.strftime("%d_%m_%Y") + " um " + time.strftime("%H_%M_%S") + " wurde eine unbekannte Person entdeckt!"
         recipients = [mail.address for mail in self.data.get_mails().values() if mail.notify]
         thread = threading.Thread(target=self.__send_message, args=[subject, message, recipients])
         thread.start()

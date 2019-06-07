@@ -11,7 +11,7 @@ from src import create_list
 import configparser
 from src.DataStorage import *
 import logging
-from src.Mail import Mail
+from src.MailClient import MailClient
 
 
 from scripts import interfacedb
@@ -57,7 +57,7 @@ class Gesichtsreidentifikation(Thread):
     def __init__(self, config_path):
         self.config_path = config_path
         self.data = PipcoDaten.get_instance()
-        self.mailing = Mail()
+        self.mailing = MailClient(self.data)
         super(Gesichtsreidentifikation, self).__init__()
 
 
@@ -330,7 +330,7 @@ class Gesichtsreidentifikation(Thread):
                                             self.unknownPersons.append(reIdVector)
                                             self.unknownRecentlySeen[len(self.unknownPersons)-1] = time.time()
                                             print("Unbekannte Person entdeckt!")
-                                            self.mailing.send_message("ACHTUNG!", "Unbekannte Person entdeckt!", "test")
+                                            self.mailing.notify_unknown_person_detected()
                                             logging.warning("Unbekannte Person entdeckt!")
                                             cv2.putText(frame, "Unknown", (xmin, ymin - 7), cv2.FONT_HERSHEY_COMPLEX, 0.8,
                                                         idColor, 1)

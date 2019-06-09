@@ -26,6 +26,7 @@ class Webserver:
         self.app.add_url_rule('/config', 'change_get_config', self.change_get_config, methods=["POST", "GET"])
         self.app.add_url_rule('/recording/<path:filename>', 'recording', self.get_recording, methods=["GET"])
         self.app.add_url_rule('/backup', 'backup', self.get_backup, methods=["GET"])
+        self.app.add_url_rule('/createperson', 'create_person', self.create_person, methods=["POST"])
         self.app.after_request(self.add_header)
         CORS(self.app)
         self.data = PipcoDaten.get_instance()
@@ -111,6 +112,17 @@ class Webserver:
                 ret = self.data.add_mail(mailaddress)
                 if ret != -1:
                     return jsonify(mail_id=ret)
+            return Webserver.ERROR
+        except Exception:
+            return Webserver.ERROR
+
+    def create_person(self):
+        try:
+            person = request.get_json().get('person')
+            if person:
+                ret = self.data.create_person(person)
+                if ret != -1:
+                    return jsonify(person_id=ret)
             return Webserver.ERROR
         except Exception:
             return Webserver.ERROR

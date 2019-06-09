@@ -4,11 +4,14 @@ from threading import RLock
 import copy
 import os
 from contextlib import contextmanager
+from scripts import interfacedb
 
 USER = "user"
 PASSWORD = "geheim"
 THUMBNAIL_PATH = "data/recordings/thumbnails/"
 RECORDINGS_PATH = "data/recordings/"
+DATABASE_PATH = "data/database/db.sql"
+TEMPORARY_PATH = "data/tmp/"
 
 
 class PipcoDaten:
@@ -23,6 +26,7 @@ class PipcoDaten:
             self.__m_emails_lock = RLock()
             self.__m_log_lock = RLock()
             self.__m_setting_lock = RLock()
+            self.__m_database_lock = RLock()
             self.__m_settings = self.m_data_persistence.load_settings()
             self.__m_emails = self.m_data_persistence.load_emails()
             self.__m_log = self.m_data_persistence.load_logs()
@@ -39,6 +43,7 @@ class PipcoDaten:
             self.__m_user = USER
             self.__m_password = PASSWORD
             self.m_stream_fps = 30
+            interfacedb.initialize(DATABASE_PATH, TEMPORARY_PATH)
 
     @staticmethod
     def get_instance():
@@ -69,6 +74,14 @@ class PipcoDaten:
         with self.__m_emails_lock:
             ret = self.__m_emails.append(Mail(address))
             self.m_data_persistence.save_emails(self.__m_emails)
+            return ret
+
+    def create_person(self, person):
+        with self.__m_database_lock:
+            pers = Person(person)
+            ret = interfacedb.insert_person(pers.name, pers.role, pers.surname, pers.comment)
+            #if pers.files:
+
             return ret
 
     def remove_mail(self, id):
@@ -230,6 +243,14 @@ class Mail:
 
     def __eq__(self, other):
         return self.address == other.address
+
+class Person:
+    def __init__(self, name, role, surname='', comment='', files=None):
+        self.name = name
+        self.surname = surname
+        self.role = role
+        self.comment = comment
+        self.files = files
 
 
 class Log:

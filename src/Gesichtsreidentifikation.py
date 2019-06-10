@@ -368,7 +368,7 @@ class Gesichtsreidentifikation(Thread):
                         print("Recording end...")
             ret2, jpg = cv2.imencode('.jpg', frame)
             self.data.set_image_fr(jpg)
-            cv2.imshow("Facerecognition", frame)
+            #cv2.imshow("Facerecognition", frame)
 
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 self.cap.release()

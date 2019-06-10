@@ -59,6 +59,7 @@ class ImageProcessing(Thread):
 
 #   Aeussere Schleife um run mit neuen Parametern auszufuehren
     def run(self):
+        print("start imageProcessing PIPCO")
         while self.__m_run:
             self.m_stream_changed = False
             self.run_imgprocessing()
@@ -66,7 +67,7 @@ class ImageProcessing(Thread):
 
 #   Eigentliche Bildverarbeitung
     def run_imgprocessing(self):
-        cap = cv2.VideoCapture(self.m_stream)
+        cap = cv2.VideoCapture(0)
         update_timer = Timer(1)
         print("Enter Loop")
         while self.__m_run:
@@ -125,7 +126,7 @@ class ImageProcessing(Thread):
                     self.m_frame_list.append(frame)
 
                 frame = self.apply_brightness_contrast(frame, self.settings.brightness, self.settings.contrast)
-
+                cv2.imshow("Facerecognition", frame)
                 ret2, jpg = cv2.imencode('.jpg', frame)
                 self.m_dataBase.set_image(jpg)
 
@@ -164,7 +165,7 @@ class ImageProcessing(Thread):
         thresh_frame = cv2.dilate(thresh_frame, None, iterations=2)
 
         # Schritt 8: Extrahieren der Kanten in eine Liste
-        (_, cnts, _) = cv2.findContours(thresh_frame.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        ( cnts, _) = cv2.findContours(thresh_frame.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
         if len(cnts):
             return cnts

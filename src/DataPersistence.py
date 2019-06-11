@@ -23,6 +23,8 @@ class DataPersistence:
 
     def save_logs(self, logs):
         self.save("data/logs.json", json.dumps(list(logs.values()), cls=SaveEncoder))
+    def save_logs_fr(self, logs):
+        self.save("data/logs_fr.json", json.dumps(list(logs.values()), cls=SaveEncoder))
 
     def save(self, filename, text):
         with open(filename, 'w') as out:
@@ -69,6 +71,15 @@ class DataPersistence:
     def load_logs(self):
         try:
             file = self.read("data/logs.json")
+            ret = json.JSONDecoder(object_hook=self.from_json).decode(file)
+            ret = DataStorage.AutoIdDict(ret)
+            return ret
+        except FileNotFoundError:
+            return
+
+    def load_logs_fr(self):
+        try:
+            file = self.read("data/logs_fr.json")
             ret = json.JSONDecoder(object_hook=self.from_json).decode(file)
             ret = DataStorage.AutoIdDict(ret)
             return ret

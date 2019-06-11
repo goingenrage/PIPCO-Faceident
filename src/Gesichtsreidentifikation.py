@@ -11,11 +11,15 @@ from src import create_list
 import configparser
 from src.DataStorage import *
 import logging
+import platform
 from src.MailClient import MailClient
 
 
 from scripts import interfacedb
 
+
+
+CODECS = {"Linux": "avc1", "Darwin": "avc1", "Windows": "AVC1"}
 
 class Gesichtsreidentifikation(Thread):
 
@@ -34,6 +38,7 @@ class Gesichtsreidentifikation(Thread):
     unknownRecentlySeen = {}
     names = {}
     face_gallery = ""
+    frame_list = []
     recentlySeen = {}
     model_n = 0
     model_c = 0
@@ -57,6 +62,7 @@ class Gesichtsreidentifikation(Thread):
     def __init__(self, config_path):
         self.config_path = config_path
         self.data = PipcoDaten.get_instance()
+        self.settings = self.data.get_settings()
         self.mailing = MailClient(self.data)
         super(Gesichtsreidentifikation, self).__init__()
 
@@ -243,6 +249,19 @@ class Gesichtsreidentifikation(Thread):
                return i, False
         return -1, True
 
+    def save_thumbnail(self, image, id):
+        small = cv2.resize(image, (0, 0), fx=0.2, fy=0.2)
+        cv2.imwrite(self.path_to_outputvid + 'thumbnails/' + str(id) + '.jpg', small)
+
+    def storage_manager(self):
+        from src.DataPersistence import DataPersistence
+        self.__m_storage_full = int(DataPersistence.get_size_of_folder("data/") / 2 ** 20) >= self.settings.max_storage
+        if self.__m_storage_full:
+            self.mailing.notify_storage_full()
+        else:
+            idx = self.data.add_log_fr()
+            self.save_thumbnail(self.frame_list[int(len(self.frame_list)/3)], idx)
+
 
     def run(self):
 
@@ -352,19 +371,28 @@ class Gesichtsreidentifikation(Thread):
                     print("Start recording with allowed person...")
                     start_recording = True
                     start_time = time.time()
-                    filename = time.strftime("mit_berechtigtem_%d_%m_%Y_%H_%M_%S")
-                    out = cv2.VideoWriter(self.path_to_outputvid + filename + '.avi', fourcc, 20.0, (640, 480))
+
+                    self.m_frame_list = []
+                    idx = self.m_dataBase.get_free_index_fr()
+                    output_str = self.path_to_outputvid + str(idx) + '.mp4'
+                    print( cv2.VideoWriter_fourcc(*CODECS[platform.system()]))
+                    out = cv2.VideoWriter(output_str,  cv2.VideoWriter_fourcc(*CODECS[platform.system()]), 30.0, (640, 480))
                 if not start_recording and unallowed_person_in_room and not allowed_person_in_room:
                     print("Start recording...")
                     start_recording = True
                     start_time = time.time()
-                    filename = time.strftime("ohne_berechtigtem_%d_%m_%Y_%H_%M_%S")
-                    out = cv2.VideoWriter(self.path_to_outputvid + filename + '.avi', fourcc, 20.0, (640, 480))
+                    self.m_frame_list = []
+                    idx = self.data.get_free_index_fr()
+                    output_str = self.path_to_outputvid + str(idx) + '.mp4'
+                    out = cv2.VideoWriter(output_str,  cv2.VideoWriter_fourcc(*CODECS[platform.system()]), 30.0, (640, 480))
+
 
                 if start_recording:
                     out.write(frame)
+                    self.frame_list.append(frame)
                     if time.time() - start_time > 50:
                         start_recording = False
+                        self.storage_manager()
                         print("Recording end...")
             ret2, jpg = cv2.imencode('.jpg', frame)
             self.data.set_image_fr(jpg)

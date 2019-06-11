@@ -17,14 +17,21 @@ class Webserver:
         """Setup flask server - register all possible rest enquiries"""
         self.app = Flask(__name__, root_path="")
         self.app.add_url_rule('/videostream', 'video_feed', self.video_feed, methods=["GET"])
+        self.app.add_url_rule('/logs_fr/<page_no>/<batch_size>', 'get_logs_fr', self.get_logs_fr, methods=["GET"])
+        self.app.add_url_rule('/log_fr/<log_id>', 'delete_log_fr', self.delete_log_fr, methods=["DELETE"])
+
         self.app.add_url_rule('/logs/<page_no>/<batch_size>', 'get_logs', self.get_logs, methods=["GET"])
         self.app.add_url_rule('/log/<log_id>', 'delete_log', self.delete_log, methods=["DELETE"])
+
         self.app.add_url_rule('/mail', 'add_mail', self.add_mail, methods=["POST"])
         self.app.add_url_rule('/mails', 'get_mails', self.get_mails, methods=["GET"])
         self.app.add_url_rule('/mail/<mail_id>', 'delete_mail', self.delete_change_mail, methods=["DELETE", "PUT"])
         self.app.add_url_rule('/login', 'check_login', self.check_login, methods=["POST"])
         self.app.add_url_rule('/config', 'change_get_config', self.change_get_config, methods=["POST", "GET"])
         self.app.add_url_rule('/recording/<path:filename>', 'recording', self.get_recording, methods=["GET"])
+
+        self.app.add_url_rule('/recording_fr/<path:filename>', 'recording_fr', self.get_recording_fr, methods=["GET"])
+
         self.app.add_url_rule('/backup', 'backup', self.get_backup, methods=["GET"])
         self.app.after_request(self.add_header)
         CORS(self.app)
@@ -62,6 +69,8 @@ class Webserver:
 
     def get_recording(self, filename):
         return send_from_directory("data/recordings/", filename, mimetype="video/mp4")
+    def get_recording_fr(self, filename):
+        return send_from_directory("data/videos/", filename, mimetype="video/avi")
 
     def get_backup(self):
         with self.data.lock_all():
@@ -88,7 +97,8 @@ class Webserver:
                 log_enabled = data.get('log_enabled')
                 fr_log_enabled = data.get('fr_log_enabled')
                 cam_mode = data.get('cam_mode')
-                #self.local_cam_mode = int(cam_mode)
+                if not cam_mode is None:
+                    self.local_cam_mode = int(cam_mode)
                 return response(json.dumps(self.data.change_settings(sensitivity, brightness, contrast, streamaddress,
                                                                      global_notify, log_enabled, fr_log_enabled, cliplength, max_logs, max_storage, cam_mode)))
             else:
@@ -135,8 +145,19 @@ class Webserver:
         except Exception:
             return Webserver.ERROR
 
+
+    def delete_log_fr(self, log_id):
+        try:
+            id = self.data.remove_log_fr(int(log_id))
+            return jsonify(log_id=id)
+        except Exception:
+            return Webserver.ERROR
+
     def get_logs(self,page_no, batch_size):
         return response(json.dumps(list(self.data.get_log_page(page_no,batch_size).values()), cls=MessageEncoder))
+
+    def get_logs_fr(self,page_no, batch_size):
+        return response(json.dumps(list(self.data.get_log_page_fr(page_no,batch_size).values()), cls=MessageEncoderFr))
 
     def video_feed(self):
 
@@ -161,6 +182,26 @@ class MessageEncoder(json.JSONEncoder):
         if isinstance(o, Log):
             thumbnail = THUMBNAIL_PATH + str(o.id) + THUMBNAIL_TYPE
             recording = str(o.id) + RECORDING_TYPE
+            try:
+                with open(thumbnail, "rb") as image_file:
+                    encoded_string = base64.b64encode(image_file.read()).decode('utf-8')
+            except Exception:
+                encoded_string = ""
+            return {"id": o.id,
+                    "message": o.message,
+                    "timestamp": o.timestamp,
+                    "thumbnail": encoded_string,
+                    "recording": recording}
+        else:
+            return o.__dict__
+
+
+class MessageEncoderFr(json.JSONEncoder):
+    """Encode objects and change the presentation of logs for message"""
+    def default(self, o):
+        if isinstance(o, Log):
+            thumbnail = 'data/videos/thumbnails/' + str(o.id) + '.jpg'
+            recording = str(o.id) + '.mp4'
             try:
                 with open(thumbnail, "rb") as image_file:
                     encoded_string = base64.b64encode(image_file.read()).decode('utf-8')

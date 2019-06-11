@@ -22,10 +22,14 @@ class PipcoDaten:
             self.m_data_persistence = DataPersistence.DataPersistence(self)
             self.__m_emails_lock = RLock()
             self.__m_log_lock = RLock()
+            self.__m_log_fr_lock = RLock()
             self.__m_setting_lock = RLock()
             self.__m_settings = self.m_data_persistence.load_settings()
             self.__m_emails = self.m_data_persistence.load_emails()
             self.__m_log = self.m_data_persistence.load_logs()
+            self.__m_log_fr = self.m_data_persistence.load_logs_fr()
+            if not self.__m_log_fr:
+                self.__m_log_fr = AutoIdDict()
             if not self.__m_log:
                 self.__m_log = AutoIdDict()
             if not self.__m_emails:
@@ -158,9 +162,21 @@ class PipcoDaten:
                     return selected
             return selected
 
+    def get_log_page_fr(self, page, batchsize):
+        with self.__m_log_lock:
+            selected = {}
+            for idx, key in enumerate(sorted(self.__m_log_fr.keys(), reverse=True)[int(page)*int(batchsize):]):
+                selected[key] = copy.copy(self.__m_log_fr[key])
+                if int(batchsize)-1 == idx:
+                    return selected
+            return selected
+
     def get_free_index(self):
         with self.__m_log_lock:
             return self.__m_log.get_free_index()
+    def get_free_index_fr(self):
+        with self.__m_log_fr_lock:
+            return self.__m_log_fr.get_free_index()
 
     def add_log(self):
         max_logs = self.get_settings().max_logs
@@ -171,6 +187,17 @@ class PipcoDaten:
             idx = self.__m_log.get_free_index()
             idx = self.__m_log.append(Log(idx))
             self.m_data_persistence.save_logs(self.__m_log)
+            return idx
+
+    def add_log_fr(self):
+        max_logs = self.get_settings().max_logs
+        with self.__m_log_fr_lock:
+            if len(self.__m_log_fr) >= max_logs:
+                idx = self.__m_log_fr.get_oldest_key()
+                self.remove_log_fr(idx)
+            idx = self.__m_log_fr.get_free_index()
+            idx = self.__m_log_fr.append(Log(idx))
+            self.m_data_persistence.save_logs_fr(self.__m_log_fr)
             return idx
 
     def check_login(self, user, password):
@@ -189,6 +216,22 @@ class PipcoDaten:
                 print(e)
             self.__m_log.__delitem__(id)
             self.m_data_persistence.save_logs(self.__m_log)
+        return id
+
+    def remove_log_fr(self, id):
+
+        from src.Gesichtsreidentifikation import Gesichtsreidentifikation
+        with self.__m_log_lock:
+            try:
+                os.remove('data/videos/' + 'thumbnails/' + str(id) + '.jpg')
+            except FileNotFoundError as e:
+                print(e)
+            try:
+                os.remove('data/videos/' + str(id) + '.mp4')
+            except FileNotFoundError as e:
+                print(e)
+            self.__m_log_fr.__delitem__(id)
+            self.m_data_persistence.save_logs_fr(self.__m_log_fr)
         return id
 
 

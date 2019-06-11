@@ -269,10 +269,10 @@ class Gesichtsreidentifikation(Thread):
         self.init_variables()
         self.initReidentification()
         self.personGallery()
-        filename = ""
+        update_timer = Timer(1)
         start_recording = False
         start_time = 0
-        fourcc = cv2.VideoWriter_fourcc(*'XVID')
+
         out = None
         #self.cap = cv2.VideoCapture("http://192.168.0.35/cgi-bin/videostream.cgi?user=admin&pwd=admin")
         print("init done")
@@ -367,7 +367,7 @@ class Gesichtsreidentifikation(Thread):
                     except Exception as e:
                         print("exception in main" + str(e))
                 # print(str(allowed_person_in_room) + " " + str(unallowed_person_in_room))
-                if not start_recording and allowed_person_in_room and unallowed_person_in_room:
+                if not start_recording and allowed_person_in_room and unallowed_person_in_room and self.settings.fr_log_enabled:
                     print("Start recording with allowed person...")
                     start_recording = True
                     start_time = time.time()
@@ -377,7 +377,7 @@ class Gesichtsreidentifikation(Thread):
                     output_str = self.path_to_outputvid + str(idx) + '.mp4'
                     print( cv2.VideoWriter_fourcc(*CODECS[platform.system()]))
                     out = cv2.VideoWriter(output_str,  cv2.VideoWriter_fourcc(*CODECS[platform.system()]), 30.0, (640, 480))
-                if not start_recording and unallowed_person_in_room and not allowed_person_in_room:
+                if not start_recording and unallowed_person_in_room and not allowed_person_in_room and self.settings.fr_log_enabled:
                     print("Start recording...")
                     start_recording = True
                     start_time = time.time()
@@ -397,6 +397,9 @@ class Gesichtsreidentifikation(Thread):
             ret2, jpg = cv2.imencode('.jpg', frame)
             self.data.set_image_fr(jpg)
             #cv2.imshow("Facerecognition", frame)
+            if update_timer.time_has_elpsed():
+                self.settings = self.data.get_settings()
+                update_timer.reset()
 
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 self.cap.release()
@@ -405,3 +408,16 @@ class Gesichtsreidentifikation(Thread):
                 del self.exec_net_reid
                 break
 
+class Timer:
+
+    def __init__(self, seconds):
+        self.__m_seconds = seconds
+        self.__m_time_stamp = None
+
+    def time_has_elpsed(self):
+        if not self.__m_time_stamp:
+            return True
+        return (time.time() - self.__m_time_stamp) >= self.__m_seconds
+
+    def reset(self):
+        self.__m_time_stamp = time.time()

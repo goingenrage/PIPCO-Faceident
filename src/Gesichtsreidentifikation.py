@@ -376,7 +376,7 @@ class Gesichtsreidentifikation(Thread):
                     idx = self.m_dataBase.get_free_index_fr()
                     output_str = self.path_to_outputvid + str(idx) + '.mp4'
                     print( cv2.VideoWriter_fourcc(*CODECS[platform.system()]))
-                    out = cv2.VideoWriter(output_str,  cv2.VideoWriter_fourcc(*CODECS[platform.system()]), 30.0, (640, 480))
+                    out = cv2.VideoWriter(output_str,  cv2.VideoWriter_fourcc(*CODECS[platform.system()]), 10.0, (640, 480))
                 if not start_recording and unallowed_person_in_room and not allowed_person_in_room and self.settings.fr_log_enabled:
                     print("Start recording...")
                     start_recording = True
@@ -384,7 +384,7 @@ class Gesichtsreidentifikation(Thread):
                     self.m_frame_list = []
                     idx = self.data.get_free_index_fr()
                     output_str = self.path_to_outputvid + str(idx) + '.mp4'
-                    out = cv2.VideoWriter(output_str,  cv2.VideoWriter_fourcc(*CODECS[platform.system()]), 30.0, (640, 480))
+                    out = cv2.VideoWriter(output_str,  cv2.VideoWriter_fourcc(*CODECS[platform.system()]), 10.0, (640, 480))
 
 
                 if start_recording:

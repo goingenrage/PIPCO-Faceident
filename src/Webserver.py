@@ -70,7 +70,7 @@ class Webserver:
     def get_recording(self, filename):
         return send_from_directory("data/recordings/", filename, mimetype="video/mp4")
     def get_recording_fr(self, filename):
-        return send_from_directory("data/videos/", filename, mimetype="video/avi")
+        return send_from_directory("data/videos/", filename, mimetype="video/mp4")
 
     def get_backup(self):
         with self.data.lock_all():
@@ -112,6 +112,7 @@ class Webserver:
             if request.method == 'DELETE':
                 return jsonify(mail_id=self.data.remove_mail(int(mail_id)))
             else:
+                
                 return jsonify(notify=self.data.toggle_mail_notify(int(mail_id)))
         except Exception:
             return Webserver.ERROR

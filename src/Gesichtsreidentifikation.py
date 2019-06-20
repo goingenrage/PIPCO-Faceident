@@ -115,7 +115,7 @@ class Gesichtsreidentifikation(Thread):
 
 
     def personGallery(self):
-        #getImagesFromDatabase()
+        self.getImagesFromDatabase()
         create_list.create_list(self.path_to_tmpfolder)
         with open(self.face_gallery, "r") as read_file:
             faces = json.load(read_file)
@@ -262,7 +262,6 @@ class Gesichtsreidentifikation(Thread):
             idx = self.data.add_log_fr()
             self.save_thumbnail(self.frame_list[int(len(self.frame_list)/3)], idx)
 
-
     def run(self):
 
 
@@ -373,7 +372,7 @@ class Gesichtsreidentifikation(Thread):
                     start_time = time.time()
 
                     self.m_frame_list = []
-                    idx = self.m_dataBase.get_free_index_fr()
+                    idx = self.data.get_free_index_fr()
                     output_str = self.path_to_outputvid + str(idx) + '.mp4'
                     print( cv2.VideoWriter_fourcc(*CODECS[platform.system()]))
                     out = cv2.VideoWriter(output_str,  cv2.VideoWriter_fourcc(*CODECS[platform.system()]), 10.0, (640, 480))
@@ -393,6 +392,7 @@ class Gesichtsreidentifikation(Thread):
                     if time.time() - start_time > 50:
                         start_recording = False
                         self.storage_manager()
+                        out.release()
                         print("Recording end...")
             ret2, jpg = cv2.imencode('.jpg', frame)
             self.data.set_image_fr(jpg)

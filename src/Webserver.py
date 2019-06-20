@@ -31,6 +31,7 @@ class Webserver:
         self.app.add_url_rule('/recording/<path:filename>', 'recording', self.get_recording, methods=["GET"])
 
         self.app.add_url_rule('/recording_fr/<path:filename>', 'recording_fr', self.get_recording_fr, methods=["GET"])
+        self.app.add_url_rule('/createperson', 'create_person', self.create_person, methods=["POST"])
 
         self.app.add_url_rule('/backup', 'backup', self.get_backup, methods=["GET"])
         self.app.after_request(self.add_header)
@@ -45,6 +46,18 @@ class Webserver:
         r.headers["Expires"] = "0"
         r.headers['Cache-Control'] = 'public, max-age=0'
         return r
+
+    def create_person(self):
+        try:
+            person = request.get_json().get('person')
+            if person:
+                ret = self.data.create_person(person)
+                if ret != -1:
+                    return jsonify(person_id = ret)
+            return Webserver.ERROR
+        except Exception:
+            return Webserver.ERROR
+
 
     def gen(self):
         print("in gen...")

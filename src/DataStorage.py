@@ -4,12 +4,14 @@ from threading import RLock
 import copy
 import os
 from contextlib import contextmanager
+from scripts import interfacedb
 
 USER = "user"
 PASSWORD = "geheim"
 THUMBNAIL_PATH = "data/recordings/thumbnails/"
 RECORDINGS_PATH = "data/recordings/"
-
+DATABASE_PATH = "./data/database/semesterprojekt.db"
+TEMPORARY_PATH = "./Testbilder/test"
 
 class PipcoDaten:
     __m_instance = None
@@ -23,6 +25,7 @@ class PipcoDaten:
             self.__m_emails_lock = RLock()
             self.__m_log_lock = RLock()
             self.__m_log_fr_lock = RLock()
+            self.__m_database_lock = RLock()
             self.__m_setting_lock = RLock()
             self.__m_settings = self.m_data_persistence.load_settings()
             self.__m_emails = self.m_data_persistence.load_emails()
@@ -42,6 +45,7 @@ class PipcoDaten:
             self.__m_image_without = None
             self.__m_user = USER
             self.__m_password = PASSWORD
+            interfacedb.initialize(DATABASE_PATH, TEMPORARY_PATH)
             self.m_stream_fps = 30
             self.m_data_persistence.save_settings(self.__m_settings)
 
@@ -75,6 +79,13 @@ class PipcoDaten:
             ret = self.__m_emails.append(Mail(address))
             self.m_data_persistence.save_emails(self.__m_emails)
             return ret
+
+    def create_person(self, person):
+        with self.__m_database_lock:
+            pers = Person(person)
+            ret = interfacedb.insert_person(pers.name, pers.role, pers.surname, pers.comment)
+            return ret
+
 
     def remove_mail(self, id):
         with self.__m_emails_lock:
@@ -297,3 +308,10 @@ class Settings:
         self.cam_mode = cam_mode
         self.fr_log_enabled = fr_log_enabled
 
+class Person:
+    def __init__(self, name, role, surname='', comment='', files=None):
+        self.name = name
+        self.surname = surname
+        self.role = role
+        self.comment = comment
+        self.files = files

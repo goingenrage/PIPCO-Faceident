@@ -67,13 +67,13 @@ if __name__ == "__main__":
             for subdirectory in subdirectories:
                 sub_dir_counter += 1
                 # Predefine person insert query
-                insert_person_query = "INSERT INTO Person(name, role) VALUES(?,?)"
+                insert_person_query = "INSERT INTO Person(name) VALUES(?)"
                 parent_dir = sys.argv[1] + '/' + directory + '/' + subdirectory
                 files = os.listdir(parent_dir)
                 file_ids = []
 
                 #Execute insert_person_query and get the last id of the table, which should be the inserted one
-                cur.execute(insert_person_query, [subdirectory,1])
+                cur.execute(insert_person_query, [subdirectory])
                 person_id = cur.lastrowid
 
                 for file in files:

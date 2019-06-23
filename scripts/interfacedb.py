@@ -89,7 +89,7 @@ def get_by_person(person_name, person_surname=''):
     """
     try:
         __check_for_initialization()
-        sqlPerson = "SELECT id, role, comment " \
+        sqlPerson = "SELECT id, comment " \
                     "FROM Person " \
                     "WHERE name LIKE :name"
 
@@ -105,7 +105,7 @@ def get_by_person(person_name, person_surname=''):
         person_id = data_row[0]
         filenames = __get_pictures_by_personid(person_id)
         actions = __get_actions_by_personid(person_id)
-        return DetailedPerson(filenames, person_id, person_name, person_surname, data_row[1], data_row[2], actions)
+        return DetailedPerson(filenames, person_id, person_name, person_surname, data_row[1], actions)
     except Exception as e:
         raise e
     finally:
@@ -176,7 +176,7 @@ def get_all_persons():
     """
     try:
         __check_for_initialization()
-        sql = "SELECT id, name, surname, role, comment " \
+        sql = "SELECT id, name, surname, comment " \
               "FROM Person "
 
         connection, cursor = database_connect()
@@ -184,7 +184,7 @@ def get_all_persons():
         data_rows = cursor.fetchall()
         person_list = []
         for data_row in data_rows:
-            person_list.append(Person(data_row[0], data_row[1], data_row[2], data_row[3], data_row[4]))
+            person_list.append(Person(data_row[0], data_row[1], data_row[2], data_row[3]))
         return person_list
     except Exception as e:
         raise e
@@ -439,12 +439,11 @@ def insert_action(action_name):
         con.rollback()
         raise e
 
-def insert_person(person_name, role, person_surname = '', comment=''):
+def insert_person(person_name, person_surname = '', comment=''):
     """
     Legt eine neue Person mit den notwendigen Daten in der Datenbank an.
     Ist durch eine Transaktion gesichert. Ist der Name bereits in der Datenbank vorhanden, so wird eine Exception geworfen.
     :param person_name: Name der Person
-    :param role: Rolle der Person (1=Administrator, 2=User, 3=Unknown)
     :param person_surname: Nachname der Person. Default=''
     :param comment: Kommentar zum Eintrag. Default=''
     :return: ID des angelegten Eintrags zur Person
@@ -455,7 +454,7 @@ def insert_person(person_name, role, person_surname = '', comment=''):
         sql =   "SELECT COUNT(*)" \
                 "FROM Person " \
                 "WHERE name LIKE :person_name"
-        insert_sql = "INSERT INTO Person(name, surname, role, comment) VALUES(?,?,?,?)"
+        insert_sql = "INSERT INTO Person(name, surname, comment) VALUES(?,?,?)"
 
         if person_surname != '':
             sql = sql + " AND surname LIKE :person_surname"
@@ -467,7 +466,7 @@ def insert_person(person_name, role, person_surname = '', comment=''):
         cur.execute(sql,param)
         if (cur.fetchone()[0] == 0):
             #If no lines were affected, the insert query is being executed and commited
-            cur.execute(insert_sql, [person_name,person_surname,role,comment])
+            cur.execute(insert_sql, [person_name,person_surname,comment])
             con.commit()
         else:
             raise Exception(person_name + " already exists in the specified database")
@@ -555,12 +554,11 @@ def __insert_picture(personId, file, cur):
 # endregion
 
 #region Update-functions
-def update_person(person_id, person_name, person_role, person_surname='', person_comment=''):
+def update_person(person_id, person_name, person_surname='', person_comment=''):
     """
     Aktualisiert einen Personen Eintrag anhand ihrer ID mit den als Parametern übergebenen Werten
     :param person_id: ID der zu verändernden Person
     :param person_name: Name der Person
-    :param person_role: Rolle der Person
     :param person_surname: Nachname der Person (Default='')
     :param person_comment: Kommentar zur Person (Default='')
     :return: True, falls keine Fehler aufgetreten sind
@@ -568,9 +566,9 @@ def update_person(person_id, person_name, person_role, person_surname='', person
     try:
         __check_for_initialization()
         con, cur = database_connect()
-        params = {'person_name': person_name, 'person_role': person_role, 'id': person_id}
+        params = {'person_name': person_name, 'id': person_id}
         sql = "UPDATE Person " \
-              "SET name = :person_name, role = :person_role"
+              "SET name = :person_name"
         if person_surname != '':
             sql += ", surname = :person_surname"
             params['person_surname'] = person_surname
@@ -618,19 +616,18 @@ def update_action(action_id, action_name):
 
 #region Classes
 class Person:
-    def __init__(self, id, name, surname, role, comment):
+    def __init__(self, id, name, surname, comment):
         self.id = id
         self.name = name
         self.surname = surname
-        self.role = role
         self.comment = comment
 
 class DetailedPerson(Person):
 
-    def __init__(self, filenames, id, name, surname, role, comment, actions):
+    def __init__(self, filenames, id, name, surname, comment, actions):
         self.actions = actions
         self.filenames = filenames
-        Person(id, name,surname,role,comment)
+        Person(id, name,surname,comment)
 
 class Action:
     def __init__(self, id, name):

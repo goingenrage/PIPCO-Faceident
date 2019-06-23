@@ -7,7 +7,7 @@ cursor = connection.cursor()
 
 def createTables():
     # open file, which has to be located within the project dir
-    f = open("/home/michael/PycharmProjects/master/scripts/files/createscript", "r")
+    f = open("/home/michael/PycharmProjects/master/scripts/files/sql", "r")
     try:
         # split the file at ';'
         splitted = f.read().split(';')

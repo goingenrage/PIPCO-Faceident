@@ -102,7 +102,7 @@ class PipcoDaten:
 
     def change_settings(self, sensitivity=None, brightness=None, contrast=None, streamaddress=None, global_notify=None,
                         log_enabled=None, fr_log_enabled=None, cliplength=None, max_logs=None, max_storage=None,
-                        mail_notification=None, cam_mode=None):
+                        cam_mode=None):
         with self.__m_setting_lock:
             ret = {}
             if sensitivity is not None:
@@ -135,9 +135,6 @@ class PipcoDaten:
             if max_storage is not None:
                 ret["max_storage"] = max_storage
                 self.__m_settings.max_storage = int(max_storage)
-            if mail_notification is not None:
-                ret["mail_notification"] = mail_notification
-                self.__m_settings.cam_mode = bool(mail_notification)
             if cam_mode is not None:
                 ret["cam_mode"] = cam_mode
                 self.__m_settings.cam_mode = int(cam_mode)
@@ -265,7 +262,7 @@ class Log:
 class Settings:
     def __init__(self, sensitivity=0.0, brightness=0.0, contrast=0.5, streamaddress="", global_notify=True,
                  log_enabled=True, fr_log_enabled=True, cliplength=30, max_logs=5, max_storage=2048,
-                 mail_notification=True, cam_mode=0):
+                 cam_mode=0):
         self.sensitivity = sensitivity
         self.streamaddress = streamaddress
         self.brightness = brightness
@@ -276,5 +273,4 @@ class Settings:
         self.cliplength = cliplength
         self.max_logs = max_logs
         self.max_storage = max_storage
-        self.mail_notification = mail_notification
         self.cam_mode = cam_mode

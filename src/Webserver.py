@@ -85,12 +85,11 @@ class Webserver:
                 cliplength = data.get('cliplength')
                 log_enabled = data.get('log_enabled')
                 fr_log_enabled = data.get('fr_log_enabled')
-                mail_notification = data.get('mail_notification')
                 cam_mode = data.get('cam_mode')
                 return response(json.dumps(self.data.change_settings(sensitivity, brightness, contrast, streamaddress,
                                                                      global_notify, log_enabled, fr_log_enabled,
                                                                      cliplength, max_logs, max_storage,
-                                                                     mail_notification, cam_mode)))
+                                                                     cam_mode)))
             else:
                 return response(json.dumps(self.data.get_settings(), cls=MessageEncoder))
         except Exception:

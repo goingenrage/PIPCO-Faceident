@@ -551,6 +551,22 @@ def __insert_picture(personId, file, cur):
     except Exception as e:
         raise e
 
+def Insert_picture_as_bytes(personId, byteObject):
+    try:
+        __check_for_initialization()
+        con, cur = database_connect()
+        insert_sql = "INSERT INTO Picture(personid,data) VALUES(?,?)"
+
+        #Execute the select query and check how many lines were affected
+
+        cur.execute(insert_sql, [personId, sqlite3.Binary(byteObject)])
+
+        con.commit()
+        return cur.lastrowid
+    except Exception as e:
+        con.rollback()
+        raise e
+
 # endregion
 
 #region Update-functions

@@ -117,13 +117,14 @@ class Webserver:
 
     def create_person(self):
         try:
-            person = request.get_json().get('person')
-            if person:
-                ret = self.data.create_person(person)
+            json = request.get_json()
+            if json:
+                ret = self.data.create_person(json)
                 if ret != -1:
                     return jsonify(person_id=ret)
             return Webserver.ERROR
-        except Exception:
+        except Exception as e:
+            raise e
             return Webserver.ERROR
 
     def check_login(self):

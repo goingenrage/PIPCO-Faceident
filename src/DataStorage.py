@@ -5,6 +5,8 @@ import copy
 import os
 from contextlib import contextmanager
 from scripts import interfacedb
+import base64
+from datauri import DataURI
 
 USER = "user"
 PASSWORD = "geheim"
@@ -77,10 +79,21 @@ class PipcoDaten:
             return ret
 
     def create_person(self, person):
+        name = person.get('name')
+        surname = person.get('surname')
+        comment = person.get('comment')
+        file = person.get('file')
+
+        missing_padding = len(file) % 4
+        while missing_padding:
+            file += '='
+            missing_padding = len(file) % 4
+
+        file = base64.b64decode(file.replace('data:image/png;base64,', '', 1))
+
         with self.__m_database_lock:
-            pers = Person(person)
-            ret = interfacedb.insert_person(pers.name, pers.role, pers.surname, pers.comment)
-            #if pers.files:
+            ret = interfacedb.insert_person(name, surname, comment)
+            ret_file = interfacedb.Insert_picture_as_bytes(ret, file)
 
             return ret
 

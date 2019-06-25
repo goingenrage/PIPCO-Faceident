@@ -6,7 +6,7 @@ import os
 from contextlib import contextmanager
 from scripts import interfacedb
 import base64
-from datauri import DataURI
+
 
 USER = "user"
 PASSWORD = "geheim"

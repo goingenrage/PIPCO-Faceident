@@ -93,7 +93,7 @@ class PipcoDaten:
 
         with self.__m_database_lock:
             ret = interfacedb.insert_person(name, surname, comment)
-            ret_file = interfacedb.Insert_picture_as_bytes(ret, file)
+            ret_file = interfacedb.insert_picture_as_bytes(ret, file)
 
             return ret
 

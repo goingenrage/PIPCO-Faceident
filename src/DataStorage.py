@@ -5,7 +5,7 @@ import copy
 import os
 from contextlib import contextmanager
 from scripts import interfacedb
-
+import base64
 USER = "user"
 PASSWORD = "geheim"
 THUMBNAIL_PATH = "data/recordings/thumbnails/"
@@ -81,11 +81,24 @@ class PipcoDaten:
             return ret
 
     def create_person(self, person):
-        with self.__m_database_lock:
-            pers = Person(person)
-            ret = interfacedb.insert_person(pers.name, pers.role, pers.surname, pers.comment)
-            return ret
+        name = person.get('name')
+        surname = person.get('surname')
+        comment = person.get('comment')
+        file = person.get('file')
 
+        missing_padding = len(file) % 4
+        while missing_padding:
+            file += '='
+            missing_padding = len(file) % 4
+
+        file = base64.b64decode(file.replace('data:image/jpeg;base64,', '', 1))
+
+
+        with self.__m_database_lock:
+            ret = interfacedb.insert_person(name, surname, comment)
+            ret_file = interfacedb.insert_picture_as_bytes(ret, file)
+
+            return ret
 
     def remove_mail(self, id):
         with self.__m_emails_lock:
@@ -104,7 +117,8 @@ class PipcoDaten:
             return ret
 
     def change_settings(self, sensitivity=None, brightness=None, contrast=None, streamaddress=None, global_notify=None,
-                        log_enabled=None, fr_log_enabled=None, cliplength=None, max_logs=None, max_storage=None, cam_mode=None):
+                        log_enabled=None, fr_log_enabled=None, cliplength=None, max_logs=None, max_storage=None,
+                        cam_mode=None):
         with self.__m_setting_lock:
             ret = {}
             if sensitivity is not None:
@@ -126,7 +140,6 @@ class PipcoDaten:
                 ret["log_enabled"] = log_enabled
                 self.__m_settings.log_enabled = bool(log_enabled)
             if fr_log_enabled is not None:
-                print("changed!")
                 ret["fr_log_enabled"] = fr_log_enabled
                 self.__m_settings.fr_log_enabled = bool(fr_log_enabled)
             if cliplength is not None:
@@ -283,6 +296,14 @@ class Mail:
     def __eq__(self, other):
         return self.address == other.address
 
+class Person:
+    def __init__(self, name, role, surname='', comment='', files=None):
+        self.name = name
+        self.surname = surname
+        self.role = role
+        self.comment = comment
+        self.files = files
+
 
 class Log:
     def __init__(self, id=0, timestamp=None, message=""):
@@ -295,7 +316,8 @@ class Log:
 
 class Settings:
     def __init__(self, sensitivity=0.0, brightness=0.0, contrast=0.5, streamaddress="", global_notify=True,
-                 log_enabled=True, fr_log_enabled = True, cliplength=30, max_logs=5, max_storage=2048, cam_mode = 2):
+                 log_enabled=True, fr_log_enabled=True, cliplength=30, max_logs=5, max_storage=2048,
+                 cam_mode=0):
         self.sensitivity = sensitivity
         self.streamaddress = streamaddress
         self.brightness = brightness
@@ -307,11 +329,3 @@ class Settings:
         self.max_storage = max_storage
         self.cam_mode = cam_mode
         self.fr_log_enabled = fr_log_enabled
-
-class Person:
-    def __init__(self, name, role, surname='', comment='', files=None):
-        self.name = name
-        self.surname = surname
-        self.role = role
-        self.comment = comment
-        self.files = files

@@ -47,20 +47,7 @@ class Webserver:
         r.headers['Cache-Control'] = 'public, max-age=0'
         return r
 
-    def create_person(self):
-        try:
-            person = request.get_json().get('person')
-            if person:
-                ret = self.data.create_person(person)
-                if ret != -1:
-                    return jsonify(person_id = ret)
-            return Webserver.ERROR
-        except Exception:
-            return Webserver.ERROR
-
-
     def gen(self):
-        print("in gen...")
         """Creates generator object with returning frames"""
         x = self.local_cam_mode
         while True:
@@ -95,9 +82,7 @@ class Webserver:
 
     def change_get_config(self):
         try:
-
             if request.method == 'POST':
-                print("change_get_config: POST")
                 data = request.get_json()
                 sensitivity = data.get('sensitivity')
                 streamaddress = data.get('streamaddress')
@@ -115,7 +100,6 @@ class Webserver:
                 return response(json.dumps(self.data.change_settings(sensitivity, brightness, contrast, streamaddress,
                                                                      global_notify, log_enabled, fr_log_enabled, cliplength, max_logs, max_storage, cam_mode)))
             else:
-                print("change_get_config: GET")
                 return response(json.dumps(self.data.get_settings(), cls=MessageEncoder))
         except Exception:
             return Webserver.ERROR
@@ -125,7 +109,6 @@ class Webserver:
             if request.method == 'DELETE':
                 return jsonify(mail_id=self.data.remove_mail(int(mail_id)))
             else:
-                
                 return jsonify(notify=self.data.toggle_mail_notify(int(mail_id)))
         except Exception:
             return Webserver.ERROR
@@ -139,6 +122,18 @@ class Webserver:
                     return jsonify(mail_id=ret)
             return Webserver.ERROR
         except Exception:
+            return Webserver.ERROR
+
+    def create_person(self):
+        try:
+            json = request.get_json()
+            if json:
+                ret = self.data.create_person(json)
+                if ret != -1:
+                    return jsonify(person_id=ret)
+            return Webserver.ERROR
+        except Exception as e:
+            raise e
             return Webserver.ERROR
 
     def check_login(self):

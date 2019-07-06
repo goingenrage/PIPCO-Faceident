@@ -1,11 +1,14 @@
+# Dokumentation und Beschreibung der Testfaelle ist in der Projektdokumentation zu finden.
+
+
 import unittest
 from scripts import interfacedb as interface
 import random
 import os
 
-db_location = "/home/michael/PycharmProjects/gesichtserkennung/data/database/db.sql"
-tmp_location = "/home/michael/tmp/"
-gallery = "/home/michael/PycharmProjects/gesichtserkennung/Testbilder/test/"
+db_location = "/home/m/Schreibtisch/tests/unittest.db"
+tmp_location = "/home/m/Schreibtisch/tests/tmp/"
+gallery = "/home/m/Schreibtisch/tests/testgallery/"
 
 
 class TestMiscellaneousMethods(unittest.TestCase):
@@ -23,7 +26,6 @@ class TestMiscellaneousMethods(unittest.TestCase):
         dumpname = interface.database_dump(tmp_location)
         self.assertNotEqual("", dumpname)
         os.remove(dumpname)
-
 
     # def test_ImportDatabase(self):
     #     self.assertTrue(interface.database_import(tmp_location + "25_06_2019_10_59_50_dump.sql"))
@@ -48,18 +50,18 @@ class TestInsertMethods(unittest.TestCase):
         self.assertLess(0, interface.delete_person_by_name("Insert"+str(random_num)))
 
     def test_PictureInsertFile(self):
-        self.assertLess(0, interface.insert_picture(7, gallery+"valentin.1.jpg"))
-        self.assertEqual(1, interface.delete_images_by_personid(7))
+        self.assertLess(0, interface.insert_picture(3, gallery+"testbild.jpg"))
+        self.assertEqual(1, interface.delete_images_by_personid(3))
 
     def test_ExceptionPictureNotFound(self):
         with self.assertRaises(FileNotFoundError):
-            interface.insert_picture(7, "abcdefgh")
+            interface.insert_picture(1, gallery+"abcdefgh")
 
     def test_PictureInsertBytes(self):
-        with open(gallery+"valentin.1.jpg", 'rb') as input_file:
+        with open(gallery+"testbild.jpg", 'rb') as input_file:
             ablob = input_file.read()
-        self.assertLess(0, interface.insert_picture_as_bytes(7, ablob))
-        self.assertEqual(1, interface.delete_images_by_personid(7))
+        self.assertLess(0, interface.insert_picture_as_bytes(1, ablob))
+        self.assertEqual(1, interface.delete_images_by_personid(1))
 
 
 class TestUpdateMethods(unittest.TestCase):
@@ -68,13 +70,13 @@ class TestUpdateMethods(unittest.TestCase):
         interface.initialize(db_location, tmp_location)
 
     def test_PersonUpdate(self):
-        self.assertTrue(interface.update_person(10, "zehn"))
-        self.assertEqual(10, interface.get_by_person("zehn").id)
-        self.assertTrue(interface.update_person(10, "b4Update"))
+        self.assertTrue(interface.update_person(2, "zwei"))
+        self.assertEqual(2, interface.get_by_person("zwei").id)
+        self.assertTrue(interface.update_person(2, "b4Update"))
 
     def test_ExceptionPersonUpdate(self):
         with self.assertRaises(Exception):
-            interface.update_person(9, "this")
+            interface.update_person(3, "testname")
 
 
 class TestDeleteMethods(unittest.TestCase):
@@ -83,15 +85,15 @@ class TestDeleteMethods(unittest.TestCase):
         interface.initialize(db_location, tmp_location)
 
     def test_PersonDelete(self):
-        interface.insert_person("test for Deleting")
+        interface.insert_person("test for Deleting", "should be deleted by unittests")
         self.assertLess(0, interface.delete_person_by_name("test for Deleting"))
 
     def test_PictureDelete(self):
-        interface.insert_picture(10, gallery+"valentin.3.jpg")
-        self.assertEqual(1, interface.delete_images_by_personid(10))
+        interface.insert_picture(2, gallery+"testbild.jpg")
+        self.assertEqual(1, interface.delete_images_by_personid(2))
 
     def test_PictureDeleteNone(self):
-        self.assertEqual(0, interface.delete_images_by_personid(9))
+        self.assertEqual(0, interface.delete_images_by_personid(3))
 
 
 class TestReadingMethods(unittest.TestCase):
@@ -106,10 +108,10 @@ class TestReadingMethods(unittest.TestCase):
         self.assertEqual(0, interface.get_by_person("Barack").id)
 
     def test_GetAllPersons(self):
-        self.assertEqual(len(interface.get_all_persons()), 46)
+        self.assertEqual(len(interface.get_all_persons()), 3)
 
     def test_GetAllPictures(self):
-        self.assertEqual(len(interface.get_all_pictures()), 3)
+        self.assertEqual(len(interface.get_all_pictures()), 0)
 
 
 if __name__ == '__main__':

@@ -2,16 +2,16 @@ import sqlite3
 import os
 import time
 
-# region Global variables
-__db_location = ""
-__tmp_directory = ""
-# endregion
-
 # region Initialization
-#   Initialization function. Sets the database_location and the temporary_saving_directory
-#   Params:    database_location (eg. /home/michael/semesterprojekt.db)
-#              temporary_saving_directory (eg. /home/michael/tmp/)
+
+
 def initialize(database_location, temporary_saving_directory):
+    """
+    Initialisierungsfunktion. Setzt die beiden Variablen db_location und tmp_directory
+    :param database_location: Pfad zur Datenbankdatei (z.B. '/home/m/semesterprojekt.db')
+    :param temporary_saving_directory: Pfad zum temporären Speicherverzeichnis (z.B. '/home/m/tmp/')
+    :return: True, falls keine Fehler aufgetreten sind
+    """
     try:
         global db_location
         global tmp_directory
@@ -25,16 +25,25 @@ def initialize(database_location, temporary_saving_directory):
     finally:
         return True
 
-#   Checks if the global variables were initialized
-#   throws InitializationError if any of the global variables is empty
+
 def __check_for_initialization():
+    """
+    Prüft ob die beiden globalen Variablen initialisiert wurden. Falls nicht wird eine entsprechende Exception geworfen.
+    :return: True, falls keine Fehler aufgetreten sind
+    """
     if not db_location:
         raise Exception("Database location was not initialized. Please call the initialize method first.")
     if not tmp_directory:
         raise Exception("Temporary directory was not initialized. Please call the initialize method first.")
     return True
 
+
 def check_for_initialization():
+    """
+    Prüft ob die beiden globalen Variablen initialisiert wurden. Falls nicht wird eine entsprechende Exception geworfen.
+    Methode ist nur vorhanden, damit sie im Unittest explizit getestet werden kann.
+    :return: True, falls keine Fehler aufgetreten sind
+    """
     if not db_location:
         raise Exception("Database location was not initialized. Please call the initialize method first.")
     if not tmp_directory:
@@ -43,7 +52,7 @@ def check_for_initialization():
 # endregion
 
 
-# region Misc database functions
+# region DB-Connect, Dump, Import
 def database_connect():
     """
     Verbindet zu der in __db_location angegebenen Datenbank und erstellt ein Connection und ein Cursor Objekt
@@ -59,6 +68,7 @@ def database_dump(saving_path):
     Exportiert die komplette Datenbank in eine .sql Datei. Der Dateiname enthält das aktuelle Datum sowie die Uhrzeit
     und endet mit 'dump.sql'. Die Datei wird unter dem in saving_path spezifiziertem Pfad zu finden sein
     :param saving_path: Der Pfad, in welchem die Datei gespeichert werden soll.
+    :return: fname: Dateipfad zu dem erstellten SQL-file
     """
     try:
         __check_for_initialization()
@@ -81,13 +91,14 @@ def database_import(file_path):
     """
     Importiert eine Datenbank dump Datei und führt die in der Datei angegebenen Befehle aus
     :param file_path: Pfad zu der Dump Datei
+    :return: True, falls keine Fehler aufgetreten sind
     """
     try:
         __check_for_initialization()
         con, cur = database_connect()
         f = open(file_path, 'r')
-        str = f.read()
-        con.executescript(str)
+        filestring = f.read()
+        con.executescript(filestring)
 
         return True
     except Exception as e:
@@ -103,25 +114,25 @@ def get_by_person(person_name, person_surname=''):
     """
     Sucht anhand der übergebenen Parametern nach Daten in der Datenbank, welche zu dieser Person passen
     :param person_name: Vorname der Person
-    :param person_surname: Nachname der Person
+    :param person_surname: Nachname der Person (Default='')
     :return: Objekt des Typs PersonWithActions, welche alle in der Datenbank gefundenen Daten enthält.
     """
     try:
         __check_for_initialization()
-        sqlPerson = "SELECT id, comment " \
+        sqlperson = "SELECT id, comment " \
                     "FROM Person " \
                     "WHERE name LIKE :name"
 
         if person_surname != '':
-            sqlPerson = sqlPerson + " AND surname LIKE :surname"
+            sqlperson = sqlperson + " AND surname LIKE :surname"
             param = {'name': '%'+person_name+'%', 'surname': '%'+person_surname+'%'}
         else:
             param = {'name': '%' + person_name + '%'}
 
         connection, cursor = database_connect()
-        cursor.execute(sqlPerson, param)
+        cursor.execute(sqlperson, param)
         data_row = cursor.fetchone()
-        if data_row == None:
+        if data_row is None:
             return DetailedPerson(None, 0, "", "", "")
         person_id = data_row[0]
         filenames = __get_pictures_by_personid(person_id)
@@ -193,16 +204,17 @@ def get_all_persons():
 
 def __get_personid_by_name(person_name, person_surname=''):
     """
-    Sucht in der Datenbank nach einem Eintrag mit Übereinstimmung mit den Parametern. Wird ein Eintrag gefunden, so wird die ID des Eintrags zurückgegeben.
+    Sucht in der Datenbank nach einem Eintrag mit Übereinstimmung mit den Parametern. Wird ein Eintrag gefunden,
+    so wird die ID des Eintrags zurückgegeben.
     :param person_name: Vorname der Person
     :param person_surname: Nachname der Person. Default=''
     :return: Person ID aus der Datenbank
     """
     try:
         __check_for_initialization()
-        sql =   "SELECT id " \
-                "FROM Person " \
-                "WHERE name LIKE :person_name"
+        sql = "SELECT id " \
+              "FROM Person " \
+              "WHERE name LIKE :person_name"
         if person_surname != '':
             sql += " AND surname LIKE :person_surname"
             param = {'person_name': '%'+person_name+'%', 'person_surname': '%'+person_surname+'%'}
@@ -217,6 +229,11 @@ def __get_personid_by_name(person_name, person_surname=''):
 
 
 def get_all_pictures():
+    """
+    Erstellt für jeden in der Picture Tabelle der Datenbank vorhandenen Eintrag eine jpg Datei und schreibt die
+    Daten in diese hinein.
+    :return: Liste der Pfade zu den erstellten Dateien
+    """
     try:
         __check_for_initialization()
         sql = "SELECT Picture.data, Picture.filename, Person.name " \
@@ -231,9 +248,9 @@ def get_all_pictures():
         for data_row in data_rows:
             if person != data_row[2]:
                 person = data_row[2]
-                i=1
+                i = 1
             filename = person + '.' + str(i) + '.jpg'
-            i=i+1
+            i = i + 1
             file_list.append(tmp_directory + filename)
             with open(tmp_directory + filename, 'wb') as output_file:
                 output_file.write(data_row[0])
@@ -256,9 +273,9 @@ def delete_person_by_name(person_name, person_surname=''):
     """
     try:
         __check_for_initialization()
-        sql =   "DELETE " \
-                "FROM Person " \
-                "WHERE id=:person_id"
+        sql = "DELETE " \
+              "FROM Person " \
+              "WHERE id=:person_id"
         person_id = __get_personid_by_name(person_name, person_surname)
         param = {'person_id': person_id}
         connection, cursor = database_connect()
@@ -283,9 +300,9 @@ def delete_images_by_personid(person_id):
     try:
         __check_for_initialization()
 
-        sql_del_pic =   "DELETE " \
-                        "FROM Picture " \
-                        "WHERE personid=:person_id"
+        sql_del_pic = "DELETE " \
+                      "FROM Picture " \
+                      "WHERE personid=:person_id"
         param = {'person_id': person_id}
         connection, cursor = database_connect()
         cursor.execute(sql_del_pic, param)
@@ -300,32 +317,34 @@ def delete_images_by_personid(person_id):
 
 
 def __delete_images_by_personid(person_id, cur):
-        """
-        Löscht jeden Eintrag aus der Tabelle Picture, welche die Personen ID peron_id referenziert.
-        :param person_id: Personen ID
-        """
-        try:
-            __check_for_initialization()
+    """
+    Löscht jeden Eintrag aus der Tabelle Picture, welche die Personen ID peron_id referenziert.
+    :param person_id: Personen ID
+    :param cur: Cursor-Objekt, mit welchem die SQL-Anweisung ausgeführt werden soll
+    """
+    try:
+        __check_for_initialization()
 
-            sql_del_pic = "DELETE " \
-                          "FROM Picture " \
-                          "WHERE personid=:person_id"
-            param = {'person_id': person_id}
-            cur.execute(sql_del_pic, param)
+        sql_del_pic = "DELETE " \
+                      "FROM Picture " \
+                      "WHERE personid=:person_id"
+        param = {'person_id': person_id}
+        cur.execute(sql_del_pic, param)
 
-            return cur.rowcount
-        except Exception as e:
-            raise e
+        return cur.rowcount
+    except Exception as e:
+        raise e
 
 
 # endregion
 
 
 # region Insert-functions
-def insert_person(person_name, person_surname = '', comment=''):
+def insert_person(person_name, person_surname='', comment=''):
     """
     Legt eine neue Person mit den notwendigen Daten in der Datenbank an.
-    Ist durch eine Transaktion gesichert. Ist der Name bereits in der Datenbank vorhanden, so wird eine Exception geworfen.
+    Ist durch eine Transaktion gesichert. Ist der Name bereits in der Datenbank vorhanden,
+    so wird eine Exception geworfen.
     :param person_name: Name der Person
     :param person_surname: Nachname der Person. Default=''
     :param comment: Kommentar zum Eintrag. Default=''
@@ -334,9 +353,9 @@ def insert_person(person_name, person_surname = '', comment=''):
     try:
         __check_for_initialization()
         con, cur = database_connect()
-        sql =   "SELECT COUNT(*)" \
-                "FROM Person " \
-                "WHERE name LIKE :person_name"
+        sql = "SELECT COUNT(*)" \
+              "FROM Person " \
+              "WHERE name LIKE :person_name"
         insert_sql = "INSERT INTO Person(name, surname, comment) VALUES(?,?,?)"
 
         if person_surname != '':
@@ -346,10 +365,10 @@ def insert_person(person_name, person_surname = '', comment=''):
             param = {'person_name': '%' + person_name + '%'}
 
         # Execute the select query and check how many lines were affected
-        cur.execute(sql,param)
+        cur.execute(sql, param)
         if cur.fetchone()[0] == 0:
-            #If no lines were affected, the insert query is being executed and commited
-            cur.execute(insert_sql, [person_name,person_surname,comment])
+            # If no lines were affected, the insert query is being executed and commited
+            cur.execute(insert_sql, [person_name, person_surname, comment])
             con.commit()
         else:
             raise ValueError(person_name + " already exists in the specified database")
@@ -359,14 +378,20 @@ def insert_person(person_name, person_surname = '', comment=''):
         raise e
 
 
-def insert_picture(personId, file):
+def insert_picture(personid, file):
+    """
+    Erstellt einen Eintrag in der Picture Tabelle mir der in den Parametern gelieferten ID für eine Zuordnung zur
+    Person Tabelle
+    Ist durch eine Transaktion gesichert.
+    :param personid: ID des Personeneintrags
+    :param file: Pfad zu der zu speichernden Datei
+    :return: ID des angelegten Eintrags in der Picture Tabelle
+    """
     try:
         __check_for_initialization()
         con, cur = database_connect()
 
         insert_sql = "INSERT INTO Picture(personid,data,filename) VALUES(?,?,?)"
-
-        # Execute the select query and check how many lines were affected
 
         with open(file, 'rb') as input_file:
             # Open the file and save the data into ablob variable
@@ -375,7 +400,7 @@ def insert_picture(personId, file):
             ablob = input_file.read()
             base = os.path.basename(file)
             afile, ext = os.path.splitext(base)
-            cur.execute(insert_sql, [personId, sqlite3.Binary(ablob), afile])
+            cur.execute(insert_sql, [personid, sqlite3.Binary(ablob), afile])
 
         con.commit()
         return cur.lastrowid
@@ -384,13 +409,19 @@ def insert_picture(personId, file):
         raise e
 
 
-def __insert_picture(personId, file, cur):
+def __insert_picture(personid, file, cur):
+    """
+    Erstellt einen Eintrag in der Picture Tabelle mir der in den Parametern gelieferten ID für eine Zuordnung zur
+    Person Tabelle.
+    :param personid: ID des Personeneintrags
+    :param file: Pfad zu der zu speichernden Datei
+    :param cur: Cursor-Objekt, mit welchem die SQL-Anweisung ausgeführt werden soll
+    :return: ID des angelegten Eintrags in der Picture Tabelle
+    """
     try:
         __check_for_initialization()
 
         insert_sql = "INSERT INTO Picture(personid,data,filename) VALUES(?,?,?)"
-
-        #Execute the select query and check how many lines were affected
 
         with open(file, 'rb') as input_file:
             # Open the file and save the data into ablob variable
@@ -399,22 +430,27 @@ def __insert_picture(personId, file, cur):
             ablob = input_file.read()
             base = os.path.basename(file)
             afile, ext = os.path.splitext(base)
-            cur.execute(insert_sql, [personId, sqlite3.Binary(ablob), afile])
+            cur.execute(insert_sql, [personid, sqlite3.Binary(ablob), afile])
 
         return cur.lastrowid
     except Exception as e:
         raise e
 
 
-def insert_picture_as_bytes(personId, byteObject):
+def insert_picture_as_bytes(personid, byteobject):
+    """
+    Erstellt einen Eintrag in der Picture Tabelle mir der in den Parametern gelieferten ID für eine Zuordnung zur
+    Person Tabelle.
+    :param personid: ID des Personeneintrags
+    :param byteobject: Rohe Byte-Daten der zu speichernden Datei
+    :return: ID des angelegten Eintrags in der Picture Tabelle
+    """
     try:
         __check_for_initialization()
         con, cur = database_connect()
         insert_sql = "INSERT INTO Picture(personid,data) VALUES(?,?)"
 
-        #Execute the select query and check how many lines were affected
-
-        cur.execute(insert_sql, [personId, sqlite3.Binary(byteObject)])
+        cur.execute(insert_sql, [personid, sqlite3.Binary(byteobject)])
 
         con.commit()
         return cur.lastrowid
@@ -438,7 +474,7 @@ def update_person(person_id, person_name, person_surname='', person_comment=''):
         __check_for_initialization()
         con, cur = database_connect()
 
-        #Check if person with name already exists
+        # Check if person with name already exists
         p = get_by_person(person_name, person_surname)
         if p.id != 0:
             raise Exception("Änderung nicht möglich. Es existiert bereits ein Eintrag mit demselben Namen.")
@@ -455,9 +491,6 @@ def update_person(person_id, person_name, person_surname='', person_comment=''):
 
         sql += " WHERE id = :id"
 
-
-
-        # Execute the select query and check how many lines were affected
         cur.execute(sql, params)
         con.commit()
         return True
@@ -466,13 +499,17 @@ def update_person(person_id, person_name, person_surname='', person_comment=''):
         raise e
 # endregion
 
-#region Classes
+# region Classes
+
+
 class Person:
+
     def __init__(self, id, name, surname, comment):
         self.id = id
         self.name = name
         self.surname = surname
         self.comment = comment
+
 
 class DetailedPerson(Person):
 
@@ -480,4 +517,4 @@ class DetailedPerson(Person):
         Person.__init__(self, id, name, surname, comment)
         self.filenames = filenames
 
-#endregion
+# endregion

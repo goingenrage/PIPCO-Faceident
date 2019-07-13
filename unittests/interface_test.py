@@ -6,9 +6,9 @@ from scripts import interfacedb as interface
 import random
 import os
 
-db_location = "/home/m/Schreibtisch/tests/unittest.db"
-tmp_location = "/home/m/Schreibtisch/tests/tmp/"
-gallery = "/home/m/Schreibtisch/tests/testgallery/"
+db_location = "../scripts/dbunittest/unittest.db"
+tmp_location = "../scripts/dbunittest/tmp/"
+gallery = "../scripts/dbunittest/testgallery/"
 
 
 class TestMiscellaneousMethods(unittest.TestCase):
